@@ -1,0 +1,7 @@
+export { IdentiteSection } from './IdentiteSection'
+export { RevenusSection } from './RevenusSection'
+export { ChargesSection } from './ChargesSection'
+export { ComptesSection } from './ComptesSection'
+export { BiensCreditsSection } from './BiensCreditsSection'
+export { SituationProfessionnelleSection } from './SituationProfessionnelleSection'
+export { OrganigrammeSection } from './OrganigrammeSection'

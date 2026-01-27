@@ -1,0 +1,763 @@
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Users, Building2, Plus, User } from 'lucide-react'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
+import AnimatedButton from '@/components/ui/AnimatedButton'
+import EmptyState from '@/components/ui/EmptyState'
+import SectionHeader from '@/components/ui/SectionHeader'
+import AssocieFormV2 from '@/components/forms/AssocieFormV2'
+import SocieteFormV2 from '@/components/forms/SocieteFormV2'
+import { useStructuresContext as useStructures } from '@/contexts/StructuresContext'
+import {
+  EntrepriseApiResult,
+  findExistingPersonneMorale,
+  findExistingPersonnePhysique,
+  createStructureFromDirigeantPP,
+  createStructureFromDirigeantPM,
+  mapFormeJuridiqueToType
+} from '@/services/entrepriseApi'
+
+// CACHE BUST VERSION: v2025-10-24-10h34 - SI VOUS NE VOYEZ PAS CE LOG, VOTRE CACHE EST CORROMPU
+console.log('🚨🚨🚨 PROFILEV2.TSX CHARGÉ - VERSION: v2025-10-24-10h34 🚨🚨🚨')
+console.log('🚨🚨🚨 SI VOUS NE VOYEZ PAS CE MESSAGE, VOTRE NAVIGATEUR UTILISE DU CODE EN CACHE 🚨🚨🚨')
+import { TypeStructure } from '@/types'
+import { getApeLabel } from '@/utils/apeCodeUtils'
+
+const ProfileV2: React.FC = () => {
+  console.log('🔥🔥🔥 PROFILEV2 COMPONENT MONTÉ - VERSION: v2025-10-24-10h34 🔥🔥🔥')
+
+  const navigate = useNavigate()
+  const [showAssocieModal, setShowAssocieModal] = useState(false)
+  const [showSocieteModal, setShowSocieteModal] = useState(false)
+  const [editingAssocieId, setEditingAssocieId] = useState<string | null>(null)
+  const [editingSocieteId, setEditingSocieteId] = useState<string | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [structureToDelete, setStructureToDelete] = useState<{ id: string; nom: string; type: string } | null>(null)
+  const associeFormRef = React.useRef<{ saveData: () => void } | null>(null)
+  const societeFormRef = React.useRef<{ saveData: () => void } | null>(null)
+
+  const { structures, addStructure, updateStructure, deleteStructure, refreshStructures } = useStructures()
+
+  // Filtrer les structures par type
+  const associes = structures.filter(s => s.type === 'PERSONNE_PHYSIQUE')
+  const societes = structures.filter(s => s.type !== 'PERSONNE_PHYSIQUE')
+
+  // Debug: Log modal states whenever they change
+  React.useEffect(() => {
+    console.log('showAssocieModal:', showAssocieModal, 'editingAssocieId:', editingAssocieId)
+  }, [showAssocieModal, editingAssocieId])
+
+  React.useEffect(() => {
+    console.log('showSocieteModal:', showSocieteModal, 'editingSocieteId:', editingSocieteId)
+  }, [showSocieteModal, editingSocieteId])
+
+  const handleCreateAssocie = async (data: any) => {
+    if (editingAssocieId) {
+      await updateStructure(editingAssocieId, data)
+    } else {
+      const newStructure = await addStructure(data)
+
+      // Mettre à jour les sociétés qui contiennent un ID temporaire (temp-...) avec le vrai ID
+      // Cela évite les doublons quand on crée une personne et sa société en même temps
+      for (const structure of structures) {
+        if (structure.personneMorale) {
+          let needsUpdate = false
+
+          // Mettre à jour les associés
+          const updatedAssocies = structure.personneMorale.associes?.map(associe => {
+            if (associe.structureId && associe.structureId.startsWith('temp-')) {
+              // Vérifier si c'est bien la même personne (nom + prénom correspondent)
+              const tempNom = `${data.personnePhysique?.prenom || ''} ${data.personnePhysique?.nom || data.nom || ''}`.trim()
+              const associeNom = associe.nom || ''
+              if (tempNom === associeNom || associeNom.includes(data.personnePhysique?.nom || '')) {
+                needsUpdate = true
+                return { ...associe, structureId: newStructure.id }
+              }
+            }
+            return associe
+          })
+
+          // Mettre à jour les détenteurs
+          const updatedDetenteurs = structure.detenteurs?.map(detenteur => {
+            if (detenteur.porteurId && detenteur.porteurId.startsWith('temp-')) {
+              needsUpdate = true
+              return { ...detenteur, porteurId: newStructure.id }
+            }
+            return detenteur
+          })
+
+          if (needsUpdate) {
+            console.log(`✅ Mise à jour de la société ${structure.nom} avec le vrai ID de ${data.nom}`)
+            await updateStructure(structure.id, {
+              ...structure,
+              detenteurs: updatedDetenteurs,
+              personneMorale: {
+                ...structure.personneMorale,
+                associes: updatedAssocies
+              }
+            })
+          }
+        }
+      }
+
+      localStorage.setItem('lastCreatedStructureId', newStructure.id)
+      window.dispatchEvent(new CustomEvent('structureCreated', { detail: { structureId: newStructure.id } }))
+    }
+    setShowAssocieModal(false)
+    setEditingAssocieId(null)
+  }
+
+  // Handler pour ajouter plusieurs entreprises comme associés depuis la recherche par dirigeant
+  const handleAddEntreprisesAsAssocies = async (entreprises: EntrepriseApiResult[], searchedNom?: string, searchedPrenoms?: string) => {
+    console.log('🎯 handleAddEntreprisesAsAssocies APPELÉ !')
+    console.log(`🔍 Ajout de ${entreprises.length} entreprise(s) avec leurs dirigeants`)
+    console.log(`🔍 Personne recherchée: ${searchedPrenoms} ${searchedNom}`)
+    console.log('📋 Détails entreprises:', entreprises)
+
+    let totalEntreprisesCreated = 0
+    let totalDirigeantsCreated = 0
+    let firstPersonnePhysiqueId: string | null = null
+    let searchedPersonId: string | null = null // ID de la personne recherchée
+    const errors: string[] = [] // Collecter les erreurs sans stopper
+
+    // Créer une copie locale des structures pour la détection de doublons en temps réel
+    let currentStructures = [...structures]
+
+    for (const entreprise of entreprises) {
+      try {
+        // 1. Créer ou récupérer la structure de l'entreprise
+        let entrepriseStructure = findExistingPersonneMorale(currentStructures, entreprise.siren, entreprise.nom_raison_sociale)
+
+        if (entrepriseStructure) {
+          console.log(`♻️ Entreprise existante: ${entreprise.nom_raison_sociale}`)
+        } else {
+          const structureData = {
+            type: mapFormeJuridiqueToType(entreprise.nature_juridique),
+            nom: entreprise.nom_raison_sociale || entreprise.nom_complet,
+            adresse: entreprise.siege.adresse,
+            telephone: '',
+            email: '',
+            personneMorale: {
+              denominationSociale: entreprise.nom_raison_sociale || entreprise.nom_complet,
+              siret: entreprise.siege.siret,
+              siren: entreprise.siren,
+              formeJuridique: entreprise.nature_juridique,
+              dateCreation: entreprise.date_creation,
+              capitalSocial: 0,
+              nombreParts: 0,
+              activitePrincipale: entreprise.activite_principale,
+              objetSocial: entreprise.activite_principale,
+              adresseSiegeSocial: entreprise.siege.adresse,
+              banquePrincipale: '',
+              associes: [],
+              patrimoine: {
+                biensImmobiliers: [],
+                comptesEpargne: [],
+                valeursMonetaires: []
+              },
+              credits: []
+            }
+          }
+          entrepriseStructure = await addStructure(structureData)
+
+          // IMPORTANT: Ajouter immédiatement à la liste locale pour la détection de doublons suivants
+          currentStructures.push(entrepriseStructure)
+
+          totalEntreprisesCreated++
+          console.log(`✅ Entreprise créée: ${entreprise.nom_raison_sociale}`)
+        }
+
+        // 2. Créer les structures pour tous les dirigeants de cette entreprise
+        if (entreprise.dirigeants && entreprise.dirigeants.length > 0) {
+          console.log(`👥 Traitement de ${entreprise.dirigeants.length} dirigeant(s) pour ${entreprise.nom_raison_sociale}`)
+
+          const dirigeantsStructures: any[] = []
+          const dirigeantDetailsMap = new Map() // Map pour garder le lien entre structure et info dirigeant
+
+          for (const dirigeant of entreprise.dirigeants) {
+            let dirigeantStructure
+
+            if (dirigeant.type_dirigeant === 'personne physique') {
+              // Vérifier si la personne physique existe déjà (avec nom, prénom ET date de naissance)
+              const existingPP = findExistingPersonnePhysique(
+                currentStructures,  // Utiliser la liste locale qui se met à jour en temps réel
+                dirigeant.nom || '',
+                dirigeant.prenoms || '',
+                dirigeant.date_de_naissance || dirigeant.annee_de_naissance
+              )
+
+              if (existingPP) {
+                console.log(`  ♻️ Dirigeant PP existant: ${dirigeant.prenoms} ${dirigeant.nom}`)
+                dirigeantStructure = existingPP
+                // Utiliser la première personne physique (existante ou nouvelle) pour pré-remplir la modal
+                if (!firstPersonnePhysiqueId) {
+                  firstPersonnePhysiqueId = existingPP.id
+                }
+                // Vérifier si c'est la personne recherchée
+                if (searchedNom && searchedPrenoms && !searchedPersonId) {
+                  const nomMatch = dirigeant.nom?.toLowerCase().includes(searchedNom.toLowerCase())
+                  const prenomMatch = dirigeant.prenoms?.toLowerCase().includes(searchedPrenoms.toLowerCase())
+                  if (nomMatch && prenomMatch) {
+                    searchedPersonId = existingPP.id
+                    console.log(`  🎯 Personne recherchée trouvée (existante): ${dirigeant.prenoms} ${dirigeant.nom}`)
+                  }
+                }
+              } else {
+                try {
+                  // Créer nouvelle structure Personne Physique
+                  const ppData = createStructureFromDirigeantPP(dirigeant)
+                  dirigeantStructure = await addStructure(ppData)
+
+                  // IMPORTANT: Ajouter immédiatement à la liste locale pour la détection de doublons suivants
+                  currentStructures.push(dirigeantStructure)
+
+                  totalDirigeantsCreated++
+                  console.log(`  ✅ Dirigeant PP créé: ${dirigeant.prenoms} ${dirigeant.nom}`)
+                  // Utiliser la première personne physique créée pour pré-remplir la modal
+                  if (!firstPersonnePhysiqueId) {
+                    firstPersonnePhysiqueId = dirigeantStructure.id
+                  }
+                  // Vérifier si c'est la personne recherchée
+                  if (searchedNom && searchedPrenoms && !searchedPersonId) {
+                    const nomMatch = dirigeant.nom?.toLowerCase().includes(searchedNom.toLowerCase())
+                    const prenomMatch = dirigeant.prenoms?.toLowerCase().includes(searchedPrenoms.toLowerCase())
+                    if (nomMatch && prenomMatch) {
+                      searchedPersonId = dirigeantStructure.id
+                      console.log(`  🎯 Personne recherchée trouvée (nouvelle): ${dirigeant.prenoms} ${dirigeant.nom}`)
+                    }
+                  }
+                } catch (error) {
+                  const errorMsg = `Erreur création dirigeant PP ${dirigeant.prenoms} ${dirigeant.nom}: ${error}`
+                  console.error(`  ❌ ${errorMsg}`)
+                  errors.push(errorMsg)
+                  // Continue avec le prochain dirigeant sans bloquer
+                  continue
+                }
+              }
+            } else {
+              // Personne Morale
+              const existingPM = findExistingPersonneMorale(
+                currentStructures,  // Utiliser la liste locale qui se met à jour en temps réel
+                dirigeant.siren,
+                dirigeant.denomination
+              )
+
+              if (existingPM) {
+                console.log(`  ♻️ Dirigeant PM existant: ${dirigeant.denomination}`)
+                dirigeantStructure = existingPM
+              } else {
+                // Récupérer les données complètes de l'entreprise via l'API
+                console.log(`  🔍 Récupération des données complètes pour ${dirigeant.denomination} (SIREN: ${dirigeant.siren})`)
+                let entrepriseCompleteData = null
+                try {
+                  const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${dirigeant.siren}`)
+                  const data = await response.json()
+                  if (data.results && data.results.length > 0) {
+                    entrepriseCompleteData = data.results[0]
+                    console.log(`  ✅ Données récupérées pour ${dirigeant.denomination}`)
+                  }
+                } catch (error) {
+                  console.error(`  ❌ Erreur lors de la récupération des données pour ${dirigeant.denomination}:`, error)
+                }
+
+                try {
+                  // Créer nouvelle structure Personne Morale avec les données complètes
+                  const pmData = createStructureFromDirigeantPM(dirigeant, entrepriseCompleteData)
+                  dirigeantStructure = await addStructure(pmData)
+
+                  // IMPORTANT: Ajouter immédiatement à la liste locale pour la détection de doublons suivants
+                  currentStructures.push(dirigeantStructure)
+
+                  totalDirigeantsCreated++
+                  console.log(`  ✅ Dirigeant PM créé: ${dirigeant.denomination}`)
+                } catch (error) {
+                  const errorMsg = `Erreur création dirigeant PM ${dirigeant.denomination}: ${error}`
+                  console.error(`  ❌ ${errorMsg}`)
+                  errors.push(errorMsg)
+                  // Continue avec le prochain dirigeant sans bloquer
+                  continue
+                }
+              }
+            }
+
+            // Si le dirigeant n'a pas pu être créé (erreur), on ne l'ajoute pas à la liste
+            if (dirigeantStructure) {
+              dirigeantsStructures.push(dirigeantStructure)
+              // Garder les infos du dirigeant (qualité, type) pour les associés
+              dirigeantDetailsMap.set(dirigeantStructure.id, dirigeant)
+            }
+          }
+
+          // 3. Créer les associés dans personneMorale.associes avec les infos complètes
+          const associesForForm = dirigeantsStructures.map(dirigeantStruct => {
+            const dirigeant = dirigeantDetailsMap.get(dirigeantStruct.id)
+            return {
+              id: `associe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              type: (dirigeantStruct.type === 'PERSONNE_PHYSIQUE' ? 'PP' : 'PM') as 'PP' | 'PM',
+              structureId: dirigeantStruct.id,
+              nom: dirigeantStruct.nom,
+              prenom: dirigeantStruct.personnePhysique?.prenom || '',
+              fonction: dirigeant?.qualite || 'Dirigeant',
+              pourcentageParts: 0
+            }
+          })
+
+          // 4. Mettre à jour l'entreprise avec ses associés
+          const updatedEntreprise = {
+            ...entrepriseStructure,
+            personneMorale: {
+              ...entrepriseStructure.personneMorale,
+              associes: [
+                ...(entrepriseStructure.personneMorale?.associes || []),
+                ...associesForForm
+              ]
+            }
+          }
+
+          try {
+            await updateStructure(entrepriseStructure.id, updatedEntreprise)
+            console.log(`📋 ${associesForForm.length} associé(s) ajouté(s) dans personneMorale.associes:`)
+            associesForForm.forEach(a => {
+              console.log(`   • ${a.prenom} ${a.nom} - ${a.fonction}`)
+            })
+          } catch (error) {
+            const errorMsg = `Erreur mise à jour associés pour ${entreprise.nom_raison_sociale}: ${error}`
+            console.error(`  ❌ ${errorMsg}`)
+            errors.push(errorMsg)
+          }
+
+          // 5. Créer les relations de détention via l'API detenteurs (dirigeants → entreprise)
+          console.log(`🔗 Création de ${dirigeantsStructures.length} relation(s) de détention pour ${entreprise.nom_raison_sociale}`)
+          for (const dirigeantStruct of dirigeantsStructures) {
+            try {
+              const url = `/api/structures/${entrepriseStructure.id}/detenteurs`
+              const payload = {
+                porteurId: dirigeantStruct.id,
+                pourcentage: 0
+              }
+              console.log(`  🌐 POST ${url}`, payload)
+
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(payload)
+              })
+
+              if (!response.ok) {
+                const errorData = await response.json()
+                console.error(`  ❌ Erreur création détenteur (${response.status}):`, errorData)
+                errors.push(`Détenteur ${dirigeantStruct.nom} → ${entreprise.nom_raison_sociale}: ${errorData.error || 'erreur inconnue'}`)
+              } else {
+                const responseData = await response.json()
+                console.log(`  ✅ Détenteur créé: ${dirigeantStruct.nom} → ${entreprise.nom_raison_sociale}`)
+              }
+            } catch (error) {
+              console.error(`  ❌ Exception création détenteur:`, error)
+              errors.push(`Exception détenteur ${dirigeantStruct.nom}: ${error}`)
+            }
+          }
+        }
+      } catch (error) {
+        const errorMsg = `Erreur traitement entreprise ${entreprise.nom_raison_sociale}: ${error}`
+        console.error(`❌ ${errorMsg}`)
+        errors.push(errorMsg)
+        // Continue avec la prochaine entreprise
+      }
+    }
+
+    console.log(`
+✅ RÉSUMÉ:
+   • ${totalEntreprisesCreated} entreprise(s) créée(s)
+   • ${totalDirigeantsCreated} dirigeant(s) créé(s)
+   • Dirigeants ajoutés comme associés dans chaque entreprise (personneMorale.associes)
+   • Relations de détention créées via API (table detenteurs)
+${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vérifiez les logs ci-dessus` : ''}
+    `)
+
+    if (errors.length > 0) {
+      console.error('❌ Liste des erreurs:', errors)
+    }
+
+    // Rafraîchir toutes les structures depuis l'API pour charger les détenteurs créés
+    console.log('🔄 Rafraîchissement des structures pour charger les détenteurs...')
+    await refreshStructures()
+    console.log('✅ Structures rafraîchies avec détenteurs')
+
+    // Ouvrir la modal avec la personne recherchée en priorité, sinon la première personne physique
+    const personToEdit = searchedPersonId || firstPersonnePhysiqueId
+    if (personToEdit) {
+      setEditingAssocieId(personToEdit)
+      setShowAssocieModal(true)
+      if (searchedPersonId) {
+        console.log(`📝 Ouverture de la modal pour la personne recherchée: ${personToEdit}`)
+      } else {
+        console.log(`📝 Ouverture de la modal pour la première personne: ${personToEdit}`)
+      }
+    }
+  }
+
+  const handleCreateSociete = async (data: any) => {
+    if (editingSocieteId) {
+      await updateStructure(editingSocieteId, data)
+    } else {
+      const newStructure = await addStructure(data)
+      localStorage.setItem('lastCreatedStructureId', newStructure.id)
+      window.dispatchEvent(new CustomEvent('structureCreated', { detail: { structureId: newStructure.id } }))
+    }
+    setShowSocieteModal(false)
+    setEditingSocieteId(null)
+  }
+
+  const handleEditAssocie = (id: string) => {
+    console.log('handleEditAssocie called with id:', id)
+    setEditingAssocieId(id)
+    setShowAssocieModal(true)
+    console.log('Modal state set to true')
+  }
+
+  const handleEditSociete = (id: string) => {
+    console.log('handleEditSociete called with id:', id)
+    setEditingSocieteId(id)
+    setShowSocieteModal(true)
+    console.log('Modal state set to true')
+  }
+
+  const handleDeleteStructure = (id: string) => {
+    const structure = structures.find(s => s.id === id)
+    if (structure) {
+      setStructureToDelete({
+        id: structure.id,
+        nom: structure.nom,
+        type: structure.type
+      })
+      setShowDeleteModal(true)
+    }
+  }
+
+  const confirmDelete = () => {
+    if (structureToDelete) {
+      console.log('🗑️ Suppression de la structure:', structureToDelete.id)
+      deleteStructure(structureToDelete.id)
+      setShowDeleteModal(false)
+      setStructureToDelete(null)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false)
+    setStructureToDelete(null)
+  }
+
+  const handleCloseAssocieModal = () => {
+    // La fermeture se fait simplement en fermant la modale
+    // Le formulaire AssocieFormV2 gère déjà l'auto-save dans son handleCancel
+    setShowAssocieModal(false)
+    setEditingAssocieId(null)
+  }
+
+  const handleCloseSocieteModal = () => {
+    // La fermeture se fait simplement en fermant la modale
+    // Le formulaire SocieteFormV2 gère déjà l'auto-save dans son handleCancel
+    setShowSocieteModal(false)
+    setEditingSocieteId(null)
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Page title */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Mes Structures</h1>
+              <p className="text-sm text-gray-500">
+                Gérez vos associés, sociétés et projets immobiliers
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+        {/* Section Associés */}
+        <div className="space-y-6">
+          <SectionHeader
+            title="Mes Associés"
+            subtitle="Personnes physiques participant à vos projets immobiliers"
+            icon={Users}
+            action={
+              <AnimatedButton
+                onClick={() => setShowAssocieModal(true)}
+                icon={Users}
+                iconRight={Plus}
+                variant="blue"
+              >
+                Ajouter un associé
+              </AnimatedButton>
+            }
+          />
+
+          {associes.length === 0 ? (
+            <EmptyState
+              title="Ajouter un associé"
+              description="Créez le profil d'une personne physique participant à vos projets immobiliers"
+              actionLabel="Créer mon premier associé"
+              onAction={() => setShowAssocieModal(true)}
+              icon={Users}
+              variant="blue"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {associes.map(associe => {
+                // Récupérer la photo depuis associe.photo ou associe.personnePhysique?.photo
+                const photoUrl = associe.photo || associe.personnePhysique?.photo
+                console.log('Photo pour', associe.nom, ':', photoUrl ? 'présente' : 'absente', associe)
+
+                return (
+                  <Card
+                    key={associe.id}
+                    className="bg-gray-50 hover:bg-gray-200 transition-colors cursor-pointer"
+                    onClick={() => handleEditAssocie(associe.id)}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {associe.nom}
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {associe.email || 'Personne physique'}
+                          </p>
+                        </div>
+                        {/* Avatar avec photo de profil ou initiales */}
+                        <div className="flex-shrink-0 relative w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden shadow-lg">
+                          {photoUrl ? (
+                            <img
+                              src={photoUrl}
+                              alt={associe.nom}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            associe.personnePhysique?.prenom || associe.personnePhysique?.nom ? (
+                              <span className="text-white text-xl font-bold">
+                                {associe.personnePhysique?.prenom?.[0]?.toUpperCase() || ''}{associe.personnePhysique?.nom?.[0]?.toUpperCase() || ''}
+                              </span>
+                            ) : (
+                              <User className="h-8 w-8 text-white" />
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                      <div className="flex justify-between">
+                        <span>Adresse:</span>
+                        <span className="font-medium text-right">{associe.adresse || 'Non renseignée'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleDeleteStructure(associe.id)}
+                        className="w-full text-red-600 hover:bg-red-50"
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Section Sociétés */}
+        <div className="space-y-6">
+          <SectionHeader
+            title="Mes Sociétés"
+            subtitle="SCI, SARL, SASU et autres structures juridiques"
+            icon={Building2}
+            variant="green"
+            action={
+              <AnimatedButton
+                onClick={() => setShowSocieteModal(true)}
+                icon={Building2}
+                iconRight={Plus}
+                variant="green"
+              >
+                Créer une société
+              </AnimatedButton>
+            }
+          />
+
+          {societes.length === 0 ? (
+            <EmptyState
+              title="Créer une société"
+              description="Ajoutez une SCI, SARL, SASU ou toute autre structure juridique pour vos projets"
+              actionLabel="Créer ma première société"
+              onAction={() => setShowSocieteModal(true)}
+              icon={Building2}
+              variant="green"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {societes.map(societe => (
+                <Card
+                  key={societe.id}
+                  className="bg-gray-50 hover:bg-gray-200 transition-colors cursor-pointer"
+                  onClick={() => handleEditSociete(societe.id)}
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded mb-2">
+                          {societe.type}
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {societe.nom}
+                        </h3>
+                      </div>
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <Building2 className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                      {societe.personneMorale?.activitePrincipale && (
+                        <div className="pb-2 border-b border-gray-200">
+                          <span className="text-xs text-gray-500">Activité principale:</span>
+                          <p className="text-sm font-medium text-gray-800 mt-1">
+                            {getApeLabel(societe.personneMorale.activitePrincipale)}
+                          </p>
+                        </div>
+                      )}
+                      {societe.personneMorale?.siren && (
+                        <div className="flex justify-between">
+                          <span>SIREN:</span>
+                          <span className="font-medium">{societe.personneMorale.siren}</span>
+                        </div>
+                      )}
+                      {societe.adresse && (
+                        <div className="flex justify-between">
+                          <span>Adresse:</span>
+                          <span className="font-medium text-right">{societe.adresse}</span>
+                        </div>
+                      )}
+                      {societe.personneMorale?.capitalSocial !== undefined && societe.personneMorale.capitalSocial > 0 && (
+                        <div className="flex justify-between">
+                          <span>Capital social:</span>
+                          <span className="font-medium">{societe.personneMorale.capitalSocial.toLocaleString('fr-FR')} €</span>
+                        </div>
+                      )}
+                      {societe.personneMorale?.dateCreation && (
+                        <div className="flex justify-between">
+                          <span>Création:</span>
+                          <span className="font-medium">{new Date(societe.personneMorale.dateCreation).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      )}
+                      {societe.personneMorale?.objetSocial && societe.personneMorale.objetSocial !== societe.personneMorale.activitePrincipale && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <span className="text-xs text-gray-500">Objet social:</span>
+                          <p className="text-xs font-medium text-gray-700 mt-1 line-clamp-2">
+                            {societe.personneMorale.objetSocial}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleDeleteStructure(societe.id)}
+                        className="w-full text-red-600 hover:bg-red-50"
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modal Associé */}
+      <Modal
+        isOpen={showAssocieModal}
+        onClose={handleCloseAssocieModal}
+        title={editingAssocieId ? 'Modifier un associé' : 'Ajouter un associé'}
+        size="xlarge"
+        closeOnBackdropClick={true}
+      >
+        <AssocieFormV2
+          associeId={editingAssocieId}
+          onSubmit={handleCreateAssocie}
+          onCancel={handleCloseAssocieModal}
+          showRechercheDirecteant={!editingAssocieId}
+          onAddEntreprisesAsAssocies={handleAddEntreprisesAsAssocies}
+        />
+      </Modal>
+
+      {/* Modal Société */}
+      <Modal
+        isOpen={showSocieteModal}
+        onClose={handleCloseSocieteModal}
+        title={editingSocieteId ? 'Modifier une société' : 'Créer une société'}
+        size="large"
+        closeOnBackdropClick={true}
+      >
+        <SocieteFormV2
+          societeId={editingSocieteId}
+          onSubmit={handleCreateSociete}
+          onCancel={handleCloseSocieteModal}
+        />
+      </Modal>
+
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        title="Confirmer la suppression"
+        size="small"
+        closeOnBackdropClick={true}
+      >
+        <div className="py-2">
+          <p className="text-gray-700 text-sm mb-4">
+            Êtes-vous sûr de vouloir supprimer <span className="font-semibold">{structureToDelete?.nom}</span> ? Cette action est irréversible.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={cancelDelete}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+export default ProfileV2

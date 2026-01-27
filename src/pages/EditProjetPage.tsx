@@ -1,0 +1,120 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import ProjetFormV2 from '@/components/forms/ProjetFormV2';
+import { useStructuresContext as useStructures } from '@/contexts/StructuresContext';
+import { useProjets } from '@/hooks/useProjets';
+import { CreateProjetForm, Projet } from '@/types';
+
+const EditProjetPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { structures } = useStructures();
+  const { getProjetById, updateProjet } = useProjets();
+  const [projet, setProjet] = useState<Projet | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProjet = async () => {
+      if (id) {
+        console.log('🔍 Chargement du projet:', id);
+        const projetData = await getProjetById(id);
+        console.log('📦 Projet chargé:', projetData);
+        setProjet(projetData);
+        setLoading(false);
+      }
+    };
+
+    loadProjet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const handleUpdateProjet = async (data: CreateProjetForm) => {
+    console.log('💾 Mise à jour du projet:', data);
+    if (!id) return;
+
+    try {
+      await updateProjet(id, data);
+      alert('Projet mis à jour avec succès!');
+      navigate('/projets');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du projet:', error);
+      alert('Erreur lors de la mise à jour du projet. Veuillez réessayer.');
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    try {
+      console.log('🎯 Génération du dossier bancaire PDF...');
+
+      if (!projet) {
+        alert('Aucun projet chargé');
+        return;
+      }
+
+      // Importer le générateur de PDF
+      const PDFGeneratorPro = (await import('@/services/pdfGeneratorPro')).default;
+      const pdfGenerator = new PDFGeneratorPro();
+
+      // Générer et télécharger le PDF
+      pdfGenerator.downloadPDF(projet);
+      console.log('✅ PDF téléchargé avec succès');
+
+      alert('Dossier bancaire généré avec succès ! Le PDF a été téléchargé.');
+    } catch (error) {
+      console.error('❌ Erreur lors de la génération du PDF:', error);
+      alert('Erreur lors de la génération du dossier. Veuillez réessayer.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-gray-600">Chargement du projet...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!projet) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => navigate('/projets')}
+            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour aux projets
+          </button>
+          <p className="text-center text-gray-600">Projet introuvable</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <button
+          onClick={() => navigate('/projets')}
+          className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Retour aux projets
+        </button>
+
+        <ProjetFormV2
+          structures={structures}
+          onSubmit={handleUpdateProjet}
+          onCancel={() => navigate('/projets')}
+          onGeneratePDF={handleGeneratePDF}
+          initialProjet={projet}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default EditProjetPage;
