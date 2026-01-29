@@ -7,6 +7,7 @@ interface User {
   nom: string;
   prenom: string;
   createdAt: string;
+  emailVerified?: boolean;
 }
 
 interface LoginCredentials {
@@ -44,6 +45,7 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
+  resendVerificationEmail: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,8 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
 
-      const response = await api.post<{ data: AuthResponse }>('/auth/login', credentials);
-      const { user: loggedUser, token } = response.data.data;
+      const response = await api.post<AuthResponse>('/auth?action=login', credentials);
+      const { user: loggedUser, token } = response.data;
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(loggedUser));
@@ -98,8 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
 
-      const response = await api.post<{ data: AuthResponse }>('/auth/register', data);
-      const { user: registeredUser, token } = response.data.data;
+      const response = await api.post<AuthResponse>('/auth?action=register', data);
+      const { user: registeredUser, token } = response.data;
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(registeredUser));
@@ -128,6 +130,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
+  const resendVerificationEmail = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      const response = await api.post('/auth/email?action=resend', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Success - the email was sent
+        return;
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || 'Erreur lors de l\'envoi de l\'email';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -136,7 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    updateUser
+    updateUser,
+    resendVerificationEmail
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

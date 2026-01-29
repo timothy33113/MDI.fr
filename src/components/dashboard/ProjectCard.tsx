@@ -13,13 +13,13 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Brouillon':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300'
       case 'Complete':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300'
       case 'PDF_Genere':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
     }
   }
 
@@ -40,7 +40,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
     <Card className="hover:shadow-md transition-shadow duration-200">
       <div className="relative">
         {/* Image du projet */}
-        <div className="aspect-video bg-gray-200 rounded-lg mb-4 overflow-hidden">
+        <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg mb-4 overflow-hidden">
           <img
             src={project.photo}
             alt={project.nom}
@@ -60,24 +60,24 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
 
         {/* Informations du projet */}
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
             {project.nom}
           </h3>
 
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center">
-              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+              <MapPin className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
               <span className="truncate">{project.adresse}</span>
             </div>
 
             <div className="flex items-center">
-              <Euro className="h-4 w-4 mr-2 text-gray-400" />
-              <span>{project.prix.toLocaleString('fr-FR')} €</span>
+              <Euro className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
+              <span>{project.prix.toLocaleString('fr-FR')} EUR</span>
             </div>
 
             <div className="flex items-center">
-              <Users className="h-4 w-4 mr-2 text-gray-400" />
-              <span>{project.nombreAssocies} associé{project.nombreAssocies > 1 ? 's' : ''}</span>
+              <Users className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
+              <span>{project.nombreAssocies} associe{project.nombreAssocies > 1 ? 's' : ''}</span>
             </div>
           </div>
 
@@ -101,7 +101,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
             {onDelete && (
               <button
                 onClick={() => onDelete(project.id)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors duration-200"
                 title="Supprimer le projet"
               >
                 <Trash2 className="h-4 w-4" />

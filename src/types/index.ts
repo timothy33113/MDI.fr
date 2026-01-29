@@ -510,18 +510,6 @@ export interface ChecklistDocument {
 // TYPES POUR LES COMPOSANTS UI
 // ==========================================
 
-export interface ProjectCard {
-  id: string;
-  nom: string;
-  adresse: string;
-  prix: number;
-  photo?: string;
-  status: StatusProjet;
-  nombrePorteurs: number;
-  rentabiliteBrute?: number;
-  cashFlowMensuel?: number;
-}
-
 export interface StructureCard {
   id: string;
   type: TypeStructure;
@@ -599,4 +587,108 @@ export interface CreateProjetForm {
 
   // Financement
   financement: Partial<PlanFinancement>;
+}
+
+// ==========================================
+// TYPES LEGACY - Compatibilité avec ancien code
+// ==========================================
+
+/**
+ * @deprecated Utiliser Projet à la place
+ * Interface legacy pour compatibilité avec l'ancien code
+ */
+export interface DossierSCI {
+  id: string;
+  userId: string;
+  nomSCI: string;
+  localisation: string;
+  prixAcquisition: number;
+  montantTravaux: number;
+  status: 'Brouillon' | 'Complete' | 'PDF_Genere' | StatusProjet;
+  dateCreation: Date;
+  dateModification: Date;
+  associes: Associe[];
+  totalParts: number;
+  financement?: PlanFinancement;
+  bienImmobilier?: BienImmobilier;
+}
+
+/**
+ * @deprecated Utiliser Structure/PorteurProjet à la place
+ * Interface legacy pour les associés
+ */
+export interface Associe {
+  id: string;
+  type: 'PERSONNE_PHYSIQUE' | 'PERSONNE_MORALE';
+  pourcentageParts: number;
+  nom: string;
+  adresse: string;
+  telephone: string;
+  email: string;
+  personnePhysique?: AssociePersonnePhysique;
+  personneMorale?: AssociePersonneMorale;
+}
+
+export interface AssociePersonnePhysique {
+  prenom: string;
+  dateNaissance: Date;
+  lieuNaissance: string;
+  situationFamiliale: 'Celibataire' | 'Marie' | 'Pacse' | 'Divorce' | 'Veuf';
+  nationalite: string;
+  emploi: string;
+  employeur: string;
+  salaire: number;
+  anciennete: string;
+  typeContrat: 'CDI' | 'CDD' | 'Freelance' | 'Fonctionnaire' | 'Interim';
+  revenus: {
+    salaire: number;
+    totalRevenus: number;
+  };
+  charges: {
+    totalCharges: number;
+  };
+  epargne: number;
+  creditsEnCours: any[];
+  biensImmobiliers: any[];
+}
+
+export interface AssociePersonneMorale {
+  denominationSociale: string;
+  siret: string;
+  siren: string;
+  formeJuridique: 'SARL' | 'SAS' | 'SA' | 'EURL' | 'SASU' | 'SCI' | 'Autre';
+  dateCreation: Date;
+  capitalSocial: number;
+  representantLegal: {
+    nom: string;
+    prenom: string;
+    fonction: 'Gerant' | 'President' | 'Directeur_General' | 'Autre';
+    dateNaissance: Date;
+  };
+  chiffreAffaires: number;
+  resultatNet: number;
+  bilanComptable: {
+    totalActif: number;
+    totalPassif: number;
+    capitauxPropres: number;
+    dettesFinancieres: number;
+    tresorerie: number;
+    exercice: string;
+  };
+  actionnariat: any[];
+  banquePrincipale: string;
+}
+
+// Extension de ProjectCard pour compatibilité avec useProject hook
+export interface ProjectCard {
+  id: string;
+  nom: string;
+  adresse: string;
+  prix: number;
+  photo?: string;
+  status: 'Brouillon' | 'Complete' | 'PDF_Genere' | StatusProjet;
+  nombrePorteurs?: number;
+  nombreAssocies?: number; // Legacy field
+  rentabiliteBrute?: number;
+  cashFlowMensuel?: number;
 }

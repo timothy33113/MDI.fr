@@ -51,8 +51,8 @@ const Register: React.FC = () => {
         prenom: 'Test'
       })
       navigate('/')
-    } catch (err) {
-      setError('Erreur lors de la création du compte')
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la création du compte')
     } finally {
       setLoading(false)
     }

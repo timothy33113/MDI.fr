@@ -46,19 +46,19 @@ const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 transition-opacity"
         onClick={handleBackdropClick}
       />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full ${size === 'small' ? 'max-h-[50vh]' : 'h-[90vh]'} flex flex-col`}>
+        <div className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-xl ${sizeClasses[size]} w-full ${size === 'small' ? 'max-h-[50vh]' : 'h-[90vh]'} flex flex-col transition-colors`}>
           {/* Header - Sticky */}
-          <div className="flex items-center justify-between p-4 border-b bg-white rounded-t-lg sticky top-0 z-10">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-lg sticky top-0 z-10">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -71,7 +71,7 @@ const Modal: React.FC<ModalProps> = ({
 
           {/* Footer - Sticky */}
           {onConfirm && (
-            <div className="flex justify-end gap-3 p-4 border-t bg-white rounded-b-lg sticky bottom-0 z-10">
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-lg sticky bottom-0 z-10">
               <Button variant="outline" onClick={onClose}>
                 {cancelText}
               </Button>

@@ -10,9 +10,10 @@ import BienImmobilierForm from '@/components/forms/BienImmobilierForm'
 import TravauxForm from '@/components/forms/TravauxForm'
 import RecapitulatifForm from '@/components/forms/RecapitulatifForm'
 import PDFGenerator from '@/services/pdfGenerator'
+import { pdfService } from '@/services/pdfService'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
-import { ArrowLeft, Plus, Users, Building2, Euro, FileText, Save, Percent } from 'lucide-react'
+import { ArrowLeft, Plus, Users, Building2, Euro, FileText, Save, Percent, Download, Loader2 } from 'lucide-react'
 import { DossierSCI, Associe, PlanFinancement, BienImmobilier, TravauxDetail } from '@/types'
 
 const ProjectEdit: React.FC = () => {
@@ -27,6 +28,8 @@ const ProjectEdit: React.FC = () => {
   const [showAssocieForm, setShowAssocieForm] = useState(false)
   const [editingAssocie, setEditingAssocie] = useState<Associe | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
   const [financement, setFinancement] = useState<Partial<PlanFinancement>>({})
   const [bienImmobilier, setBienImmobilier] = useState<Partial<BienImmobilier>>({})
   const [travaux, setTravaux] = useState<TravauxDetail[]>([])
@@ -99,10 +102,63 @@ const ProjectEdit: React.FC = () => {
       updateProject(completeDossier.id, completeDossier)
     }
 
-    // Télécharger le PDF
+    // Telecharger le PDF (local)
     const pdfGenerator = new PDFGenerator()
     const filename = `dossier-${completeDossier.nomSCI || 'sci'}-${new Date().toISOString().split('T')[0]}.pdf`
     pdfGenerator.downloadPDF(completeDossier, filename)
+  }
+
+  // Generer PDF depuis l'API (pour les projets sauvegardes en base)
+  const handleGeneratePDFFromAPI = async () => {
+    if (!id || isNewProject) {
+      // Fallback sur la generation locale si pas d'ID
+      handleGeneratePDF()
+      return
+    }
+
+    setPdfLoading(true)
+    setPdfError(null)
+
+    try {
+      const result = await pdfService.downloadPDFBasic(id)
+
+      if (!result.success) {
+        setPdfError(result.error || 'Erreur lors de la generation du PDF')
+        // Fallback sur la generation locale
+        handleGeneratePDF()
+      }
+    } catch (error: any) {
+      console.error('Error generating PDF from API:', error)
+      setPdfError(error.message)
+      // Fallback sur la generation locale
+      handleGeneratePDF()
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  // Generer PDF Pro depuis l'API
+  const handleGeneratePDFPro = async () => {
+    if (!id || isNewProject) {
+      setPdfError('Veuillez d\'abord sauvegarder le projet')
+      return
+    }
+
+    setPdfLoading(true)
+    setPdfError(null)
+
+    try {
+      const result = await pdfService.downloadPDFPro(id)
+
+      if (!result.success) {
+        setPdfError(result.error || 'Erreur lors de la generation du PDF')
+      }
+    } catch (error: any) {
+      console.error('Error generating PDF Pro:', error)
+      setPdfError(error.message)
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   const handleAssocieSave = (associe: Associe) => {
@@ -199,6 +255,23 @@ const ProjectEdit: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-3">
+              {/* Bouton Generer PDF - visible uniquement pour les projets existants */}
+              {!isNewProject && (
+                <Button
+                  onClick={handleGeneratePDFFromAPI}
+                  disabled={pdfLoading}
+                  variant="secondary"
+                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                >
+                  {pdfLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  {pdfLoading ? 'Generation...' : 'Generer PDF'}
+                </Button>
+              )}
+
               <Button
                 onClick={handleSaveProject}
                 disabled={loading}
@@ -222,6 +295,21 @@ const ProjectEdit: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Message d'erreur PDF */}
+      {pdfError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-red-700 text-sm">{pdfError}</span>
+            <button
+              onClick={() => setPdfError(null)}
+              className="text-red-500 hover:text-red-700"
+            >
+              x
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Contenu principal */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">

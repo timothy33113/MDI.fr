@@ -10,6 +10,10 @@ const StructuresPage: React.FC = () => {
   const { structures, loading, addStructure, deleteStructure } = useStructures();
   const [showForm, setShowForm] = useState(false);
 
+  // Debug
+  console.log('🏗️ StructuresPage - loading:', loading, '- count:', structures.length);
+  structures.forEach((s, i) => console.log(`  [${i}] ${s.nom} (${s.type})`));
+
   const handleCreateStructure = async (data: CreateStructureForm) => {
     try {
       addStructure(data);

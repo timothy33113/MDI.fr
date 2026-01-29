@@ -819,7 +819,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           }
         }
 
-        const response = await fetch(`/api/structures/${entrepriseId}`, {
+        const response = await fetch(`/api/structures?id=${entrepriseId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

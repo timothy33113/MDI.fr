@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import ImageUpload from '@/components/ui/ImageUpload'
 import SocieteFormV2 from './SocieteFormV2'
 import RechercheEntrepriseParDirigeant from '@/components/RechercheEntrepriseParDirigeant'
 import { useStructuresContext } from '@/contexts/StructuresContext'
@@ -1495,50 +1496,16 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
                 </div>
               </div>
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Photo de profil
-                </label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Cette photo sera affichée dans l'application. Format recommandé : JPG, PNG
-                </p>
-                <div className="flex gap-2">
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          // Convertir en base64
-                          const reader = new FileReader()
-                          reader.onloadend = () => {
-                            setIdentite({ ...identite, photo: reader.result as string })
-                          }
-                          reader.readAsDataURL(file)
-                        }
-                      }}
-                      className="hidden"
-                    />
-                    <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      Choisir une photo
-                    </span>
-                  </label>
-                  {identite.photo && (
-                    <button
-                      type="button"
-                      onClick={() => setIdentite({ ...identite, photo: '' })}
-                      className="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-lg hover:bg-red-200 transition-colors"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Supprimer
-                    </button>
-                  )}
-                </div>
+                <ImageUpload
+                  label="Photo de profil"
+                  value={identite.photo}
+                  onChange={(url) => setIdentite({ ...identite, photo: url })}
+                  maxSize={5 * 1024 * 1024}
+                  accept="image/jpeg,image/png,image/webp"
+                  helperText="Cette photo sera affichee dans l'application et le dossier bancaire."
+                  showPreview={false}
+                  placeholder="Glissez une photo ou cliquez pour selectionner"
+                />
               </div>
             </div>
 

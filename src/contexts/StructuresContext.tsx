@@ -86,7 +86,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
   const updateStructure = useCallback(async (id: string, data: any): Promise<void> => {
     try {
       console.log('📝 Mise à jour de structure via API:', id, data)
-      const response = await api.put(`/structures/${id}`, data)
+      const response = await api.put(`/structures?id=${id}`, data)
 
       if (response.data.success) {
         const updatedStructure = {
@@ -110,7 +110,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
   const deleteStructure = useCallback(async (id: string): Promise<void> => {
     try {
       console.log('🗑️ Suppression de structure via API:', id)
-      await api.delete(`/structures/${id}`)
+      await api.delete(`/structures?id=${id}`)
 
       setStructures(prev => prev.filter(s => s.id !== id))
       console.log('✅ Structure supprimée:', id)
