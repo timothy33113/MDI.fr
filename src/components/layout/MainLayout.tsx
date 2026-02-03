@@ -2,9 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
-import ThemeToggle from '@/components/ui/ThemeToggle'
-import GlobalSearch from '@/components/search/GlobalSearch'
-import { Home, User, LogOut, Clock, AlertTriangle, Mail, X, Loader2 } from 'lucide-react'
+import { Home, User, LogOut, AlertTriangle, Mail, X, Loader2 } from 'lucide-react'
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -106,22 +104,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <GlobalSearch />
-
               <Link
-                to="/historique"
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                title="Historique des modifications"
+                to="/mon-compte"
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <Clock className="h-5 w-5" />
-              </Link>
-
-              <ThemeToggle />
-
-              <div className="flex items-center space-x-2">
                 <User className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 <span className="text-sm text-gray-700 dark:text-gray-300">{user.email}</span>
-              </div>
+              </Link>
 
               <button
                 onClick={handleLogout}

@@ -262,27 +262,106 @@ const StructureDetail: React.FC = () => {
             />
             <Card>
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Nom</p>
-                    <p className="font-medium">{structure.nom}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Type</p>
-                    <p className="font-medium">{structure.type === 'PERSONNE_PHYSIQUE' ? 'Personne physique' : structure.type}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{structure.email || 'Non renseigné'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Téléphone</p>
-                    <p className="font-medium">{structure.telephone || 'Non renseigné'}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-gray-500">Adresse</p>
-                    <p className="font-medium">{structure.adresse || 'Non renseignée'}</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {isPersonnePhysique && structure.personnePhysique ? (
+                    <>
+                      <div>
+                        <p className="text-sm text-gray-500">Prénom</p>
+                        <p className="font-medium text-lg">{structure.personnePhysique.prenom || 'Non renseigné'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Nom</p>
+                        <p className="font-medium text-lg">{structure.personnePhysique.nom || 'Non renseigné'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Date de naissance</p>
+                        <p className="font-medium text-lg">
+                          {structure.personnePhysique.dateNaissance
+                            ? new Date(structure.personnePhysique.dateNaissance).toLocaleDateString('fr-FR')
+                            : 'Non renseignée'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Lieu de naissance</p>
+                        <p className="font-medium text-lg">{structure.personnePhysique.lieuNaissance || 'Non renseigné'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Nationalité</p>
+                        <p className="font-medium text-lg">{structure.personnePhysique.nationalite || 'Non renseignée'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-lg">{structure.email || 'Non renseigné'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Téléphone</p>
+                        <p className="font-medium text-lg">{structure.telephone || 'Non renseigné'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-500">Adresse</p>
+                        <p className="font-medium text-lg">{structure.adresse || 'Non renseignée'}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-sm text-gray-500">Nom / Raison sociale</p>
+                        <p className="font-medium text-lg">{structure.nom}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Type de structure</p>
+                        <p className="font-medium text-lg">{structure.type}</p>
+                      </div>
+                      {structure.personneMorale && (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-500">SIRET</p>
+                            <p className="font-medium text-lg">{structure.personneMorale.siret || 'Non renseigné'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Capital social</p>
+                            <p className="font-medium text-lg">
+                              {structure.personneMorale.capitalSocial
+                                ? formatCurrency(structure.personneMorale.capitalSocial)
+                                : 'Non renseigné'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Date de création</p>
+                            <p className="font-medium text-lg">
+                              {structure.personneMorale.dateCreation
+                                ? new Date(structure.personneMorale.dateCreation).toLocaleDateString('fr-FR')
+                                : 'Non renseignée'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Gérant</p>
+                            <p className="font-medium text-lg">{structure.personneMorale.gerant || 'Non renseigné'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Régime fiscal</p>
+                            <p className="font-medium text-lg">{structure.personneMorale.regimeFiscal || 'Non renseigné'}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="text-sm text-gray-500">Objet social</p>
+                            <p className="font-medium">{structure.personneMorale.objetSocial || 'Non renseigné'}</p>
+                          </div>
+                        </>
+                      )}
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-lg">{structure.email || 'Non renseigné'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Téléphone</p>
+                        <p className="font-medium text-lg">{structure.telephone || 'Non renseigné'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-500">Adresse</p>
+                        <p className="font-medium text-lg">{structure.adresse || 'Non renseignée'}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </Card>
@@ -299,9 +378,38 @@ const StructureDetail: React.FC = () => {
             />
             <Card>
               <div className="p-6">
-                <div className="text-center py-8 text-gray-500">
-                  Contenu à venir - Situation professionnelle
-                </div>
+                {isPersonnePhysique && structure.personnePhysique ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                      <p className="text-sm text-gray-500">Profession</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.profession || 'Non renseignée'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Employeur</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.employeur || 'Non renseigné'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Type de contrat</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.typeContrat || 'Non renseigné'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Ancienneté</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.anciennete || 'Non renseignée'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Situation familiale</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.situationFamiliale || 'Non renseignée'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Nombre d'enfants</p>
+                      <p className="font-medium text-lg">{structure.personnePhysique.nombreEnfants ?? 'Non renseigné'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Informations non disponibles pour ce type de structure
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -317,9 +425,50 @@ const StructureDetail: React.FC = () => {
             />
             <Card>
               <div className="p-6">
-                <div className="text-center py-8 text-gray-500">
-                  Contenu à venir - Revenus
-                </div>
+                {isPersonnePhysique && structure.personnePhysique ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <p className="text-sm text-green-700">Salaire mensuel net</p>
+                        <p className="font-bold text-2xl text-green-900">
+                          {structure.personnePhysique.salaireMensuelNet
+                            ? formatCurrency(structure.personnePhysique.salaireMensuelNet)
+                            : 'Non renseigné'}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">Autres revenus mensuels</p>
+                        <p className="font-bold text-2xl text-blue-900">
+                          {structure.personnePhysique.autresRevenus
+                            ? formatCurrency(structure.personnePhysique.autresRevenus)
+                            : formatCurrency(0)}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <p className="text-sm text-indigo-700">Total revenus mensuels</p>
+                        <p className="font-bold text-2xl text-indigo-900">
+                          {formatCurrency(
+                            (structure.personnePhysique.salaireMensuelNet || 0) +
+                            (structure.personnePhysique.autresRevenus || 0)
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">Revenus annuels estimés</p>
+                      <p className="font-bold text-3xl text-gray-900">
+                        {formatCurrency(
+                          ((structure.personnePhysique.salaireMensuelNet || 0) +
+                          (structure.personnePhysique.autresRevenus || 0)) * 12
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Informations non disponibles pour ce type de structure
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -335,9 +484,74 @@ const StructureDetail: React.FC = () => {
             />
             <Card>
               <div className="p-6">
-                <div className="text-center py-8 text-gray-500">
-                  Contenu à venir - Charges
-                </div>
+                {isPersonnePhysique && structure.personnePhysique ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <p className="text-sm text-orange-700">Charges mensuelles</p>
+                        <p className="font-bold text-2xl text-orange-900">
+                          {structure.personnePhysique.chargesMensuelles
+                            ? formatCurrency(structure.personnePhysique.chargesMensuelles)
+                            : formatCurrency(0)}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                        <p className="text-sm text-red-700">Crédits en cours (mensuel)</p>
+                        <p className="font-bold text-2xl text-red-900">
+                          {structure.personnePhysique.creditEnCours
+                            ? formatCurrency(structure.personnePhysique.creditEnCours)
+                            : formatCurrency(0)}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <p className="text-sm text-amber-700">Total charges mensuelles</p>
+                        <p className="font-bold text-2xl text-amber-900">
+                          {formatCurrency(
+                            (structure.personnePhysique.chargesMensuelles || 0) +
+                            (structure.personnePhysique.creditEnCours || 0)
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Calcul du reste à vivre */}
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">Reste à vivre mensuel</p>
+                      <p className={`font-bold text-3xl ${
+                        ((structure.personnePhysique.salaireMensuelNet || 0) +
+                        (structure.personnePhysique.autresRevenus || 0) -
+                        (structure.personnePhysique.chargesMensuelles || 0) -
+                        (structure.personnePhysique.creditEnCours || 0)) >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {formatCurrency(
+                          (structure.personnePhysique.salaireMensuelNet || 0) +
+                          (structure.personnePhysique.autresRevenus || 0) -
+                          (structure.personnePhysique.chargesMensuelles || 0) -
+                          (structure.personnePhysique.creditEnCours || 0)
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        (Revenus - Charges - Crédits)
+                      </p>
+                    </div>
+
+                    {/* Épargne disponible */}
+                    {structure.personnePhysique.epargneDisponible && (
+                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <p className="text-sm text-purple-700">Épargne disponible</p>
+                        <p className="font-bold text-2xl text-purple-900">
+                          {formatCurrency(structure.personnePhysique.epargneDisponible)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Informations non disponibles pour ce type de structure
+                  </div>
+                )}
               </div>
             </Card>
           </div>

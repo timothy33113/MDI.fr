@@ -19,9 +19,15 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('📡 Chargement des projets...');
       const response = await api.get('/projets');
-      setProjets(response.data.data.projets);
+      console.log('📥 Réponse projets:', response.data);
+      // L'API retourne directement un tableau, pas {data: {projets: [...]}}
+      const projetsData = Array.isArray(response.data) ? response.data : (response.data.data?.projets || []);
+      console.log('✅ Projets chargés:', projetsData.length);
+      setProjets(projetsData);
     } catch (err: any) {
+      console.error('❌ Erreur chargement projets:', err);
       setError(err.response?.data?.error || 'Erreur lors du chargement des projets');
     } finally {
       setLoading(false);

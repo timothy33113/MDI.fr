@@ -17,6 +17,7 @@ import PatrimoinePage from './pages/PatrimoinePage'
 import StructureDetail from './pages/StructureDetail'
 import UpdateHoldings from './pages/UpdateHoldings'
 import HistoryPage from './pages/HistoryPage'
+import MonCompte from './pages/MonCompte'
 import MainLayout from './components/layout/MainLayout'
 import { AuthProvider } from './hooks/useAuth'
 import { StructuresProvider } from './contexts/StructuresContext'
@@ -58,6 +59,9 @@ function App() {
 
                 {/* History/Audit */}
                 <Route path="/historique" element={<HistoryPage />} />
+
+                {/* Mon Compte */}
+                <Route path="/mon-compte" element={<MonCompte />} />
               </Routes>
             </MainLayout>
             <ToastContainer />
