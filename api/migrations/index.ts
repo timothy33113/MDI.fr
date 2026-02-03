@@ -109,6 +109,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`;
       results.push('Created indexes on audit_logs');
     }
+    else if (migration === 'user-profile') {
+      // Migration for user profile columns
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS nom VARCHAR(255)`;
+      results.push('Added nom column');
+
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS prenom VARCHAR(255)`;
+      results.push('Added prenom column');
+
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS telephone VARCHAR(50)`;
+      results.push('Added telephone column');
+    }
     else if (migration === 'all') {
       // Run all migrations
       // Reset tokens
@@ -142,9 +153,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_id ON audit_logs(entity_id)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`;
       results.push('Completed audit-logs migration');
+
+      // User profile
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS nom VARCHAR(255)`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS prenom VARCHAR(255)`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS telephone VARCHAR(50)`;
+      results.push('Completed user-profile migration');
     }
     else {
-      return res.status(400).json({ error: 'Unknown migration', available: ['reset-tokens', 'email-verification', 'audit-logs', 'all'] });
+      return res.status(400).json({ error: 'Unknown migration', available: ['reset-tokens', 'email-verification', 'audit-logs', 'user-profile', 'all'] });
     }
 
     return res.status(200).json({
