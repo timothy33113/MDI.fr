@@ -61,8 +61,20 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/projets/${id}`);
-      return response.data.data.projet;
+      // Utiliser /projets/data?id=xxx car /projets/[id] a des problèmes de routing sur Vercel
+      const response = await api.get(`/projets/data?id=${id}`);
+
+      if (response.data.success && response.data.data) {
+        const data = response.data.data;
+        // Combiner les données dans le format Projet attendu
+        return {
+          ...data.projet,
+          bienImmobilier: data.bienImmobilier,
+          financement: data.financement,
+          porteurs: data.porteurs
+        } as Projet;
+      }
+      return null;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erreur lors du chargement du projet');
       return null;

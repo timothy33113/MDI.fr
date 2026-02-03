@@ -70,31 +70,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 3. Recuperer les elements du bien (appartements, parkings, etc.)
     let elementsBien: any[] = [];
     if (bienImmobilier) {
-      elementsBien = await sql`
-        SELECT * FROM elements_bien
-        WHERE bien_id = ${bienImmobilier.id}
-        ORDER BY created_at
-      `;
+      try {
+        elementsBien = await sql`
+          SELECT * FROM elements_bien
+          WHERE bien_id = ${bienImmobilier.id}
+          ORDER BY created_at
+        `;
+      } catch {
+        // Table peut ne pas exister
+        elementsBien = [];
+      }
     }
 
     // 4. Recuperer les travaux
     let travaux: any[] = [];
     if (bienImmobilier) {
-      travaux = await sql`
-        SELECT * FROM travaux
-        WHERE bien_id = ${bienImmobilier.id}
-        ORDER BY created_at
-      `;
+      try {
+        travaux = await sql`
+          SELECT * FROM travaux
+          WHERE bien_id = ${bienImmobilier.id}
+          ORDER BY created_at
+        `;
+      } catch {
+        // Table peut ne pas exister
+        travaux = [];
+      }
     }
 
     // 5. Recuperer les photos
     let photos: any[] = [];
     if (bienImmobilier) {
-      photos = await sql`
-        SELECT * FROM photos
-        WHERE bien_id = ${bienImmobilier.id}
-        ORDER BY created_at
-      `;
+      try {
+        photos = await sql`
+          SELECT * FROM photos
+          WHERE bien_id = ${bienImmobilier.id}
+          ORDER BY created_at
+        `;
+      } catch {
+        // Table peut ne pas exister
+        photos = [];
+      }
     }
 
     // 6. Recuperer le plan de financement
