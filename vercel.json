@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    { "source": "/api/projets/:id", "destination": "/api/projets/[id]" },
-    { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/((?!api).*)", "destination": "/index.html" }
-  ]
+  "framework": "vite"
 }
