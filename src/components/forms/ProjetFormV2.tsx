@@ -265,17 +265,27 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         }))
       }
 
-      // Adresse
+      // Adresse - gérer les deux formats (string ou objet)
       if (data.location) {
-        const locationParts = data.location.split(',')
-        if (locationParts.length >= 2) {
-          const cityPostal = locationParts[locationParts.length - 1].trim().split(' ')
-          if (cityPostal.length >= 2) {
-            setCodePostal(cityPostal[0])
-            setVille(cityPostal.slice(1).join(' '))
+        if (typeof data.location === 'object') {
+          // Format objet de l'API Leboncoin: { city, zipcode, address, ... }
+          if (data.location.city) setVille(data.location.city)
+          if (data.location.zipcode || data.location.postalCode) {
+            setCodePostal(data.location.zipcode || data.location.postalCode)
           }
-          if (locationParts.length > 2) {
-            setAdresse(locationParts.slice(0, -1).join(', '))
+          if (data.location.address) setAdresse(data.location.address)
+        } else if (typeof data.location === 'string') {
+          // Format string legacy
+          const locationParts = data.location.split(',')
+          if (locationParts.length >= 2) {
+            const cityPostal = locationParts[locationParts.length - 1].trim().split(' ')
+            if (cityPostal.length >= 2) {
+              setCodePostal(cityPostal[0])
+              setVille(cityPostal.slice(1).join(' '))
+            }
+            if (locationParts.length > 2) {
+              setAdresse(locationParts.slice(0, -1).join(', '))
+            }
           }
         }
       }
