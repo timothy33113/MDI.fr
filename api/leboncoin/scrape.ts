@@ -137,7 +137,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       data: {
         ...formattedData,
-        enrichedDescription
+        enrichedDescription,
+        // Exposer les attributs au niveau racine pour le frontend
+        surface: formattedData.attributes.surface,
+        rooms: formattedData.attributes.rooms,
+        bedrooms: formattedData.attributes.bedrooms,
+        propertyType: formattedData.attributes.propertyType,
+        energyRate: formattedData.attributes.energyRate,
+        ges: formattedData.attributes.ges
       }
     });
 

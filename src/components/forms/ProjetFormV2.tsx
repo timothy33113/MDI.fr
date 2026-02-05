@@ -448,15 +448,38 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
   // Mapper les types de biens Leboncoin vers nos types
   const mapLeboncoinPropertyType = (type: string): ElementBien['type'] | null => {
+    if (!type) return null
+    const typeLower = type.toLowerCase()
     const mapping: Record<string, ElementBien['type']> = {
       'appartement': 'Appartement',
+      'apartment': 'Appartement',
+      'flat': 'Appartement',
       'maison': 'Maison',
+      'house': 'Maison',
+      'villa': 'Maison',
       'studio': 'Studio',
       'parking': 'Parking',
+      'garage': 'Parking',
+      'box': 'Parking',
       'cave': 'Cave',
-      'local commercial': 'Local_Commercial'
+      'local commercial': 'Local_Commercial',
+      'local': 'Local_Commercial',
+      'commerce': 'Local_Commercial',
+      'immeuble': 'Appartement', // Par défaut pour immeubles
+      'terrain': 'Maison', // Approximation
+      'loft': 'Appartement',
+      'duplex': 'Appartement',
+      'triplex': 'Appartement'
     }
-    return mapping[type?.toLowerCase()] || null
+    // Recherche exacte d'abord
+    if (mapping[typeLower]) return mapping[typeLower]
+    // Recherche partielle
+    for (const [key, value] of Object.entries(mapping)) {
+      if (typeLower.includes(key) || key.includes(typeLower)) {
+        return value
+      }
+    }
+    return null
   }
 
   // Génération des documents nécessaires
