@@ -47,11 +47,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Encoder l'URL pour la passer en query parameter
-    const encodedUrl = encodeURIComponent(url);
+    // Extraire l'ID de l'annonce depuis l'URL Leboncoin
+    // Format: https://www.leboncoin.fr/ad/ventes_immobilieres/3104343961
+    // ou: https://www.leboncoin.fr/ventes_immobilieres/3104343961.htm
+    const adIdMatch = url.match(/\/(\d{8,12})(?:\.htm)?(?:\?|$)/);
+    if (!adIdMatch) {
+      return res.status(400).json({
+        error: 'URL Leboncoin invalide. Format attendu: https://www.leboncoin.fr/ad/ventes_immobilieres/XXXXXXXXXX'
+      });
+    }
+    const adId = adIdMatch[1];
+    console.log('Extracted ad ID:', adId);
 
-    // Appeler l'API RapidAPI Leboncoin
-    const response = await fetch(`https://leboncoin1.p.rapidapi.com/v2/leboncoin/search?query=${encodedUrl}`, {
+    // Appeler l'API RapidAPI Leboncoin avec le bon endpoint
+    const response = await fetch(`https://leboncoin1.p.rapidapi.com/v2/leboncoin/ad?query=${adId}`, {
       method: 'GET',
       headers: {
         'x-rapidapi-host': 'leboncoin1.p.rapidapi.com',
