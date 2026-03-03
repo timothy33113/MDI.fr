@@ -119,7 +119,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     setAnalysisLoading(true)
     try {
       const response = await api.post(`/projets/actions?id=${initialProjet.id}&action=analyser`)
-      setAnalysisData(response.data.data.analyse)
+      setAnalysisData(response.data.data)
     } catch (err: any) {
       console.error('Erreur calcul rentabilité:', err)
       alert('Erreur lors du calcul de rentabilité. Sauvegardez d\'abord le projet.')
@@ -134,7 +134,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     setChecklistLoading(true)
     try {
       const response = await api.get(`/projets/actions?id=${initialProjet.id}&action=checklist`)
-      const docs = response.data.data?.documents || []
+      const docs = response.data.data || []
       setChecklistDocs(docs)
       setChecklistGenerated(docs.length > 0)
     } catch {
@@ -151,7 +151,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     setChecklistLoading(true)
     try {
       const response = await api.post(`/projets/actions?id=${initialProjet.id}&action=checklist`)
-      setChecklistDocs(response.data.data.documents)
+      setChecklistDocs(response.data.data)
       setChecklistGenerated(true)
     } catch (err: any) {
       console.error('Erreur génération checklist:', err)

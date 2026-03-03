@@ -211,7 +211,7 @@ export const useProjets = () => {
       setLoading(true);
       setError(null);
       const response = await api.post(`/projets/actions?id=${projetId}&action=analyser`);
-      return response.data.data.analyse;
+      return response.data.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors du calcul de rentabilité';
       setError(errorMsg);
@@ -226,7 +226,7 @@ export const useProjets = () => {
       setLoading(true);
       setError(null);
       const response = await api.post(`/projets/actions?id=${projetId}&action=checklist`);
-      return response.data.data.documents;
+      return response.data.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors de la génération de la checklist';
       setError(errorMsg);
@@ -241,7 +241,7 @@ export const useProjets = () => {
       setLoading(true);
       setError(null);
       const response = await api.get(`/projets/actions?id=${projetId}&action=checklist`);
-      return response.data.data.documents;
+      return response.data.data;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erreur lors du chargement de la checklist');
       return [];
