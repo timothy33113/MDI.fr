@@ -140,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ${t.description || ''},
               ${t.montant || 0},
               ${t.priorite || 'Moyenne'},
-              ${t.dureeEstimee || null},
+              ${t.dureeEstimee || 0},
               ${t.artisan || null},
               ${t.devisObtenu || false},
               ${t.dateDebutPrevue || null}
