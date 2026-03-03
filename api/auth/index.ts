@@ -4,6 +4,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
+export const config = {
+  api: {
+    bodyParser: true,
+  },
+};
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
 function isValidEmail(email: string): boolean {
@@ -25,33 +31,12 @@ function isValidPassword(password: string): { valid: boolean; errors: string[] }
   return { valid: errors.length === 0, errors };
 }
 
-async function getBody(req: VercelRequest): Promise<any> {
-  // Try req.body first (Vercel default parser), fall back to stream reading
-  try {
-    const body = req.body;
-    if (body && typeof body === 'object') return body;
-    if (typeof body === 'string') return JSON.parse(body);
-  } catch (e: any) {
-    // req.body getter can throw "Invalid JSON" in some Vercel runtime versions
-    // Log what's happening for debugging
-    console.error('[getBody] req.body failed:', e.message);
+function getBody(req: VercelRequest): any {
+  let body = req.body;
+  if (typeof body === 'string') {
+    body = JSON.parse(body);
   }
-  // Fallback: read from stream
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-  const raw = Buffer.concat(chunks).toString('utf8');
-  console.error('[getBody] stream raw (first 200 chars):', raw.substring(0, 200));
-  console.error('[getBody] stream raw length:', raw.length);
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch (e2: any) {
-    console.error('[getBody] stream parse failed:', e2.message);
-    // Last resort: try to handle URL-encoded or other formats
-    throw new Error(`Body parse failed. req.body error, stream content (${raw.length} chars): ${raw.substring(0, 100)}`);
-  }
+  return body || {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -74,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // LOGIN
     if (action === 'login') {
-      const body = await getBody(req);
+      const body = getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {
@@ -120,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // REGISTER
     if (action === 'register') {
-      const body = await getBody(req);
+      const body = getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {
@@ -182,6 +167,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Action invalide', available: ['login', 'register'] });
   } catch (error: any) {
     console.error('Auth error:', error);
-    return res.status(500).json({ error: 'Erreur serveur', debug: error.message, stack: error.stack?.split('\n').slice(0, 3) });
+    return res.status(500).json({ error: 'Erreur serveur', debug: error.message });
   }
 }
