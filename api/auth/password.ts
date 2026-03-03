@@ -19,19 +19,12 @@ function getUserFromRequest(req: VercelRequest): { userId: string; email: string
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-async function getBody(req: VercelRequest): Promise<any> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+function getBody(req: VercelRequest): any {
+  let body = req.body;
+  if (typeof body === 'string') {
+    body = JSON.parse(body);
   }
-  const raw = Buffer.concat(chunks).toString('utf8');
-  return raw ? JSON.parse(raw) : {};
+  return body || {};
 }
 
 function isValidPassword(password: string): { valid: boolean; errors: string[] } {
@@ -70,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
 
   try {
-    const body = await getBody(req);
+    const body = getBody(req);
 
     // FORGOT PASSWORD
     if (action === 'forgot') {

@@ -2,12 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
 
 function getUserFromRequest(req: VercelRequest): { userId: string; email: string } | null {
@@ -23,13 +17,12 @@ function getUserFromRequest(req: VercelRequest): { userId: string; email: string
   }
 }
 
-async function getBody(req: VercelRequest): Promise<any> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+function getBody(req: VercelRequest): any {
+  let body = req.body;
+  if (typeof body === 'string') {
+    body = JSON.parse(body);
   }
-  const raw = Buffer.concat(chunks).toString('utf8');
-  return raw ? JSON.parse(raw) : {};
+  return body || {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -77,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT - Mettre à jour le profil
     if (req.method === 'PUT' && action === 'update') {
-      const body = await getBody(req);
+      const body = getBody(req);
       const { nom, prenom, telephone } = body;
 
       const result = await sql`

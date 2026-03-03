@@ -4,12 +4,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
 function isValidEmail(email: string): boolean {
@@ -31,13 +25,12 @@ function isValidPassword(password: string): { valid: boolean; errors: string[] }
   return { valid: errors.length === 0, errors };
 }
 
-async function parseBody(req: VercelRequest): Promise<any> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+function getBody(req: VercelRequest): any {
+  let body = req.body;
+  if (typeof body === 'string') {
+    body = JSON.parse(body);
   }
-  const raw = Buffer.concat(chunks).toString('utf8');
-  return raw ? JSON.parse(raw) : {};
+  return body || {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -60,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // LOGIN
     if (action === 'login') {
-      const body = await parseBody(req);
+      const body = getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {
@@ -106,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // REGISTER
     if (action === 'register') {
-      const body = await parseBody(req);
+      const body = getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {
