@@ -131,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const checklist = await sql`
       SELECT * FROM checklist_documents
       WHERE projet_id = ${id}
-      ORDER BY categorie, nom
+      ORDER BY categorie, nom_document
     `;
 
     // 10. Formater les donnees pour le frontend/PDF
@@ -246,15 +246,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } : null,
       checklistDocuments: checklist.map(d => ({
         id: d.id,
-        nom: d.nom,
+        nomDocument: d.nom_document,
         categorie: d.categorie,
         description: d.description,
+        concerneStructureId: d.concerne_structure_id,
         obligatoire: d.obligatoire,
+        quantiteRequise: d.quantite_requise,
+        validiteJours: d.validite_jours,
         statut: d.statut,
-        porteurId: d.porteur_id,
-        porteurNom: d.porteur_nom,
-        dureeValidite: d.duree_validite,
-        quantite: d.quantite
+        dateFourniture: d.date_fourniture
       })),
       // Format legacy pour compatibilite avec pdfGenerator.ts (DossierSCI)
       legacy: {
