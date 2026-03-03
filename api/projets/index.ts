@@ -256,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Support both string (base64/URL) and object format
           const url = typeof photo === 'string' ? photo : photo.url;
           const filename = typeof photo === 'string' ? `photo_${i}.jpg` : (photo.filename || `photo_${i}.jpg`);
-          const type = sanitize(typeof photo === 'string' ? 'Autre' : (photo.type || 'Autre'), VALID_PHOTO_TYPES, 'Autre');
+          const type = sanitize(typeof photo === 'string' ? 'Autre' : String(photo.type || 'Autre'), VALID_PHOTO_TYPES, 'Autre');
           const size = typeof photo === 'string' ? 0 : (photo.size || 0);
           const mimeType = typeof photo === 'string' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
           const description = typeof photo === 'string' ? null : (photo.description || null);

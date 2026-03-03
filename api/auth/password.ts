@@ -26,6 +26,8 @@ export const config = {
 };
 
 async function getBody(req: VercelRequest): Promise<any> {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'string') return JSON.parse(req.body);
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);

@@ -4,12 +4,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
 function isValidEmail(email: string): boolean {
@@ -32,6 +26,14 @@ function isValidPassword(password: string): { valid: boolean; errors: string[] }
 }
 
 async function getBody(req: VercelRequest): Promise<{ email?: string; password?: string }> {
+  // Si le body est déjà parsé par Vercel
+  if (req.body && typeof req.body === 'object') {
+    return req.body;
+  }
+  if (req.body && typeof req.body === 'string') {
+    return JSON.parse(req.body);
+  }
+  // Sinon, lire le stream (bodyParser désactivé)
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
@@ -166,7 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(400).json({ error: 'Action invalide', available: ['login', 'register'] });
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Auth error:', error);
     return res.status(500).json({ error: 'Erreur serveur' });
   }
