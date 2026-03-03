@@ -26,20 +26,30 @@ function isValidPassword(password: string): { valid: boolean; errors: string[] }
 }
 
 async function getBody(req: VercelRequest): Promise<{ email?: string; password?: string }> {
-  // Si le body est déjà parsé par Vercel
-  if (req.body && typeof req.body === 'object') {
+  // Si le body est déjà parsé par Vercel (objet JS)
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
     return req.body;
   }
-  if (req.body && typeof req.body === 'string') {
+  // Si c'est un string JSON
+  if (typeof req.body === 'string' && req.body.length > 0) {
     return JSON.parse(req.body);
   }
-  // Sinon, lire le stream (bodyParser désactivé)
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  // Si c'est un Buffer
+  if (Buffer.isBuffer(req.body)) {
+    const str = req.body.toString('utf8');
+    return str ? JSON.parse(str) : {};
   }
-  const rawBody = Buffer.concat(chunks).toString('utf8');
-  return rawBody ? JSON.parse(rawBody) : {};
+  // Fallback: lire le stream
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    }
+    const rawBody = Buffer.concat(chunks).toString('utf8');
+    return rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return {};
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
