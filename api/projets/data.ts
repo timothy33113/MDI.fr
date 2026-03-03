@@ -1,26 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
-
-function getUserFromRequest(req: VercelRequest): { userId: string; email: string } | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-  try {
-    const token = authHeader.substring(7);
-    return jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
-  } catch {
-    return null;
-  }
-}
+import { getUserFromRequest } from '../_lib/auth';
+import { getSQL } from '../_lib/db';
 
 /**
- * GET /api/projets/[id]/data
- * Retourne toutes les données d'un projet pour la génération PDF
- * Inclut: projet, bien immobilier, financement, porteurs, structures
+ * GET /api/projets/data?id=xxx
+ * Retourne toutes les donnees d'un projet pour la generation PDF
+ * Inclut: projet, bien immobilier, elements, travaux, photos, financement, porteurs, rentabilite, checklist
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: 'ID du projet requis' });
   }
 
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+  const sql = getSQL();
 
   try {
     // 1. Recuperer le projet
@@ -68,48 +53,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const bienImmobilier = biens.length > 0 ? biens[0] : null;
 
     // 3. Recuperer les elements du bien (appartements, parkings, etc.)
-    let elementsBien: any[] = [];
-    if (bienImmobilier) {
-      try {
-        elementsBien = await sql`
-          SELECT * FROM elements_bien
-          WHERE bien_id = ${bienImmobilier.id}
-          ORDER BY created_at
-        `;
-      } catch {
-        // Table peut ne pas exister
-        elementsBien = [];
-      }
-    }
+    const elementsBien = await sql`
+      SELECT * FROM elements_bien_v2
+      WHERE projet_id = ${id}
+      ORDER BY created_at
+    `;
 
     // 4. Recuperer les travaux
     let travaux: any[] = [];
     if (bienImmobilier) {
-      try {
-        travaux = await sql`
-          SELECT * FROM travaux
-          WHERE bien_id = ${bienImmobilier.id}
-          ORDER BY created_at
-        `;
-      } catch {
-        // Table peut ne pas exister
-        travaux = [];
-      }
+      travaux = await sql`
+        SELECT * FROM travaux_details_v2
+        WHERE bien_immobilier_id = ${bienImmobilier.id}
+        ORDER BY created_at
+      `;
     }
 
     // 5. Recuperer les photos
     let photos: any[] = [];
     if (bienImmobilier) {
-      try {
-        photos = await sql`
-          SELECT * FROM photos
-          WHERE bien_id = ${bienImmobilier.id}
-          ORDER BY created_at
-        `;
-      } catch {
-        // Table peut ne pas exister
-        photos = [];
-      }
+      photos = await sql`
+        SELECT * FROM photos_v2
+        WHERE bien_immobilier_id = ${bienImmobilier.id}
+        ORDER BY created_at
+      `;
     }
 
     // 6. Recuperer le plan de financement
@@ -131,14 +98,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         s.email as structure_email,
         s.photo as structure_photo,
         s.personne_physique,
-        s.personne_morale
+        s.personne_morale,
+        s.detenteurs
       FROM porteurs_projet pp
       JOIN structures s ON s.id = pp.structure_id
       WHERE pp.projet_id = ${id}
       ORDER BY pp.pourcentage_projet DESC
     `;
 
-    // 8. Formater les donnees pour le frontend/PDF
+    // 8. Recuperer l'analyse de rentabilite
+    const analyses = await sql`
+      SELECT * FROM analyses_rentabilite
+      WHERE projet_id = ${id}
+    `;
+    const analyse = analyses.length > 0 ? analyses[0] : null;
+
+    // 9. Recuperer la checklist documents
+    const checklist = await sql`
+      SELECT * FROM checklist_documents
+      WHERE projet_id = ${id}
+      ORDER BY categorie, nom
+    `;
+
+    // 10. Formater les donnees pour le frontend/PDF
     const formattedData = {
       projet: {
         id: projet.id,
@@ -172,27 +154,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           type: e.type,
           superficie: e.superficie,
           nombrePieces: e.nombre_pieces,
+          etage: e.etage,
           etat: e.etat,
           enLocation: e.en_location,
           loyerMensuel: e.loyer_mensuel,
-          chargesMensuelles: e.charges_mensuelles
+          chargesMensuelles: e.charges_mensuelles,
+          equipements: e.equipements
         })),
         travauxPrevus: travaux.map(t => ({
           id: t.id,
-          categorie: t.categorie || t.type,
+          categorie: t.categorie,
           description: t.description,
           montant: t.montant,
           priorite: t.priorite || 'Moyenne',
           dureeEstimee: t.duree_estimee || 0,
           artisan: t.artisan,
-          devisObtenu: t.devis_obtenu || false
+          devisObtenu: t.devis_obtenu || false,
+          dateDebutPrevue: t.date_debut_prevue
         })),
         photos: photos.map(p => ({
           id: p.id,
           url: p.url,
           filename: p.filename,
           description: p.description,
-          type: p.type
+          type: p.type,
+          size: p.size,
+          mimeType: p.mime_type
         }))
       } : null,
       financement: financement ? {
@@ -227,8 +214,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           email: p.structure_email,
           photo: p.structure_photo,
           personnePhysique: p.personne_physique,
-          personneMorale: p.personne_morale
+          personneMorale: p.personne_morale,
+          detenteurs: p.detenteurs
         }
+      })),
+      analysesRentabilite: analyse ? {
+        id: analyse.id,
+        rentabiliteBrute: analyse.rentabilite_brute,
+        rentabiliteNette: analyse.rentabilite_nette,
+        chargesAnnuelles: analyse.charges_annuelles,
+        cashFlowMensuel: analyse.cash_flow_mensuel,
+        cashFlowAnnuel: analyse.cash_flow_annuel,
+        roi: analyse.roi,
+        revenusPorteurs: analyse.revenus_porteurs,
+        tauxEndettementProjet: analyse.taux_endettement_projet,
+        anneesRecuperationApport: analyse.annees_recuperation_apport
+      } : null,
+      checklistDocuments: checklist.map(d => ({
+        id: d.id,
+        nom: d.nom,
+        categorie: d.categorie,
+        description: d.description,
+        obligatoire: d.obligatoire,
+        statut: d.statut,
+        porteurId: d.porteur_id,
+        porteurNom: d.porteur_nom,
+        dureeValidite: d.duree_validite,
+        quantite: d.quantite
       })),
       // Format legacy pour compatibilite avec pdfGenerator.ts (DossierSCI)
       legacy: {
@@ -262,7 +274,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dureeCredit: financement.duree_credit,
           tauxEstime: financement.taux_interet_estime,
           mensualiteEstimee: financement.mensualite_totale,
-          rentabilitePrevisionnelle: 0
+          rentabilitePrevisionnelle: analyse?.rentabilite_brute || 0
         } : undefined,
         bienImmobilier: bienImmobilier ? {
           id: bienImmobilier.id,
@@ -278,7 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           travauxPrevus: travaux.map(t => ({
             id: t.id,
             bienImmobilierId: bienImmobilier.id,
-            categorie: t.categorie || t.type || 'Autre',
+            categorie: t.categorie || 'Autre',
             description: t.description,
             montant: t.montant,
             priorite: t.priorite || 'Moyenne',
@@ -306,6 +318,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-// Deployed: Tue Feb  3 15:34:11 CET 2026
-// Force sync 1770130538
-// Vercel sync test 1770130855

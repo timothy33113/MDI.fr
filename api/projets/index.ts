@@ -1,21 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
-
-function getUserFromRequest(req: VercelRequest): { userId: string; email: string } | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-  try {
-    const token = authHeader.substring(7);
-    return jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
-  } catch {
-    return null;
-  }
-}
+import { getUserFromRequest } from '../_lib/auth';
+import { getSQL } from '../_lib/db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
 
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+  const sql = getSQL();
 
   try {
     if (req.method === 'GET') {
@@ -56,13 +41,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body = JSON.parse(body);
       }
 
-      const { nom, description, status, bien, financement, porteurs } = body || {};
+      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = body || {};
 
       if (!nom) {
         return res.status(400).json({ error: 'Nom du projet requis' });
       }
 
-      // 1. Créer le projet
+      // 1. Creer le projet
       const projetResult = await sql`
         INSERT INTO projets (user_id, nom, description, status)
         VALUES (${user.userId}, ${nom}, ${description || null}, ${status || 'Analyse'})
@@ -72,9 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const projet = projetResult[0];
       const projetId = projet.id;
 
-      // 2. Créer le bien immobilier si fourni
+      // 2. Creer le bien immobilier si fourni
+      let bienId: string | null = null;
       if (bien) {
-        await sql`
+        const bienResult = await sql`
           INSERT INTO biens_immobiliers_v2 (
             projet_id, adresse, code_postal, ville, type, superficie,
             nombre_pieces, nombre_chambres, nombre_sdb, annee_construction,
@@ -99,12 +85,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ${bien.chargesMensuelles || null},
             ${bien.taxeFonciere || null}
           )
+          RETURNING id
         `;
+        bienId = bienResult[0].id;
       }
 
-      // 3. Créer le plan de financement si fourni
+      // 3. Creer les elements du bien (appartements, parkings, etc.)
+      if (elementsBien && Array.isArray(elementsBien) && elementsBien.length > 0) {
+        for (const elem of elementsBien) {
+          await sql`
+            INSERT INTO elements_bien_v2 (
+              projet_id, type, superficie, nombre_pieces, etage, etat,
+              en_location, loyer_mensuel, charges_mensuelles, equipements
+            ) VALUES (
+              ${projetId},
+              ${elem.type || 'Autre'},
+              ${elem.superficie || 0},
+              ${elem.nombrePieces || null},
+              ${elem.etage || null},
+              ${elem.etat || 'Bon'},
+              ${elem.enLocation || false},
+              ${elem.loyerMensuel || 0},
+              ${elem.chargesMensuelles || 0},
+              ${elem.equipements ? `{${elem.equipements.join(',')}}` : null}
+            )
+          `;
+        }
+      }
+
+      // 4. Creer les travaux
+      if (travaux && Array.isArray(travaux) && travaux.length > 0 && bienId) {
+        for (const t of travaux) {
+          await sql`
+            INSERT INTO travaux_details_v2 (
+              bien_immobilier_id, categorie, description, montant,
+              priorite, duree_estimee, artisan, devis_obtenu, date_debut_prevue
+            ) VALUES (
+              ${bienId},
+              ${t.categorie || t.type || 'Autre'},
+              ${t.description || ''},
+              ${t.montant || 0},
+              ${t.priorite || 'Moyenne'},
+              ${t.dureeEstimee || null},
+              ${t.artisan || null},
+              ${t.devisObtenu || false},
+              ${t.dateDebutPrevue || null}
+            )
+          `;
+        }
+      }
+
+      // 5. Creer les photos
+      if (photos && Array.isArray(photos) && photos.length > 0 && bienId) {
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          // Support both string (base64/URL) and object format
+          const url = typeof photo === 'string' ? photo : photo.url;
+          const filename = typeof photo === 'string' ? `photo_${i}.jpg` : (photo.filename || `photo_${i}.jpg`);
+          const type = typeof photo === 'string' ? 'Autre' : (photo.type || 'Autre');
+          const size = typeof photo === 'string' ? 0 : (photo.size || 0);
+          const mimeType = typeof photo === 'string' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
+          const description = typeof photo === 'string' ? null : (photo.description || null);
+
+          await sql`
+            INSERT INTO photos_v2 (
+              bien_immobilier_id, url, filename, type, size, mime_type, description
+            ) VALUES (
+              ${bienId}, ${url}, ${filename}, ${type}, ${size}, ${mimeType}, ${description}
+            )
+          `;
+        }
+      }
+
+      // 6. Creer le plan de financement si fourni
       if (financement) {
-        // Calculer les valeurs dérivées si nécessaires
         const prixAchat = financement.prixAchat || 0;
         const fraisNotaire = financement.fraisNotaire || 0;
         const fraisAgence = financement.fraisAgence || 0;
@@ -122,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const tauxInteret = financement.tauxInteretEstime || 3.5;
         const tauxAssurance = financement.tauxAssuranceEstime || 0.3;
 
-        // Calcul des mensualités (formule d'amortissement)
+        // Calcul des mensualites
         const tauxMensuel = tauxInteret / 100 / 12;
         const nombreMensualites = dureeCredit * 12;
         const mensualiteCapitalInterets = tauxMensuel > 0
@@ -161,7 +215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `;
       }
 
-      // 4. Créer les porteurs du projet si fournis
+      // 7. Creer les porteurs du projet si fournis
       if (porteurs && Array.isArray(porteurs) && porteurs.length > 0) {
         for (const porteur of porteurs) {
           if (porteur.structureId) {
@@ -173,18 +227,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // 5. Retourner le projet créé
+      // 8. Retourner le projet cree avec les donnees completes
       const fullProjet = {
         ...projet,
         bienImmobilier: bien || null,
         financement: financement || null,
-        porteurs: porteurs || []
+        porteurs: porteurs || [],
+        elementsBien: elementsBien || [],
+        travaux: travaux || []
       };
 
       return res.status(201).json({
         success: true,
         data: { projet: fullProjet },
-        projet: fullProjet // Pour compatibilité
+        projet: fullProjet
       });
     }
 
