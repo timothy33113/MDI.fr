@@ -1,6 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUserFromRequest } from '../_lib/auth';
-import { getSQL } from '../_lib/db';
+import { neon } from '@neondatabase/serverless';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
+
+function getUserFromRequest(req: VercelRequest) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  try {
+    return jwt.verify(authHeader.substring(7), JWT_SECRET) as { userId: string; email: string };
+  } catch { return null; }
+}
+
+function getSQL() {
+  return neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+}
 
 /**
  * GET /api/patrimoine?structureId=xxx  - Patrimoine d'une structure
