@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { CreateProjetForm, Structure, Projet } from '@/types'
+import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Camera, X, Link as LinkIcon, TrendingUp, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Camera, X, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 import api from '@/services/api'
 
 interface ProjetFormV2Props {
@@ -103,6 +103,89 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   const [isLeboncoinExpanded, setIsLeboncoinExpanded] = useState(false)
   const [leboncoinUrl, setLeboncoinUrl] = useState('')
   const [isLoadingLeboncoin, setIsLoadingLeboncoin] = useState(false)
+
+  // Onglet 6: Analyse serveur
+  const [analysisData, setAnalysisData] = useState<AnalysesRentabilite | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+
+  // Onglet 7: Checklist documents
+  const [checklistDocs, setChecklistDocs] = useState<ChecklistDocument[]>([])
+  const [checklistLoading, setChecklistLoading] = useState(false)
+  const [checklistGenerated, setChecklistGenerated] = useState(false)
+
+  // API: Calculer la rentabilité
+  const handleCalculateRentabilite = async () => {
+    if (!initialProjet?.id) return
+    setAnalysisLoading(true)
+    try {
+      const response = await api.post(`/projets/actions?id=${initialProjet.id}&action=analyser`)
+      setAnalysisData(response.data.data.analyse)
+    } catch (err: any) {
+      console.error('Erreur calcul rentabilité:', err)
+      alert('Erreur lors du calcul de rentabilité. Sauvegardez d\'abord le projet.')
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  // API: Charger la checklist existante
+  const handleLoadChecklist = async () => {
+    if (!initialProjet?.id) return
+    setChecklistLoading(true)
+    try {
+      const response = await api.get(`/projets/actions?id=${initialProjet.id}&action=checklist`)
+      const docs = response.data.data?.documents || []
+      setChecklistDocs(docs)
+      setChecklistGenerated(docs.length > 0)
+    } catch {
+      // Pas de checklist existante, c'est normal
+      setChecklistGenerated(false)
+    } finally {
+      setChecklistLoading(false)
+    }
+  }
+
+  // API: Générer la checklist
+  const handleGenerateChecklist = async () => {
+    if (!initialProjet?.id) return
+    setChecklistLoading(true)
+    try {
+      const response = await api.post(`/projets/actions?id=${initialProjet.id}&action=checklist`)
+      setChecklistDocs(response.data.data.documents)
+      setChecklistGenerated(true)
+    } catch (err: any) {
+      console.error('Erreur génération checklist:', err)
+      alert('Erreur lors de la génération de la checklist')
+    } finally {
+      setChecklistLoading(false)
+    }
+  }
+
+  // API: Mettre à jour le statut d'un document
+  const handleUpdateDocumentStatus = async (documentId: string, newStatut: string) => {
+    if (!initialProjet?.id) return
+    try {
+      await api.patch(`/projets/actions?id=${initialProjet.id}&action=checklist&documentId=${documentId}`, { statut: newStatut })
+      setChecklistDocs(prev => prev.map(d =>
+        d.id === documentId ? { ...d, statut: newStatut as ChecklistDocument['statut'] } : d
+      ))
+    } catch (err: any) {
+      console.error('Erreur mise à jour statut:', err)
+    }
+  }
+
+  // Auto-charger les données serveur au changement d'onglet
+  useEffect(() => {
+    if (activeTab === 'documents' && initialProjet?.id && !checklistGenerated && checklistDocs.length === 0) {
+      handleLoadChecklist()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'recapitulatif' && initialProjet?.id && !analysisData) {
+      handleCalculateRentabilite()
+    }
+  }, [activeTab])
 
   useEffect(() => {
     const total = porteurs.reduce((sum, p) => sum + p.pourcentageProjet, 0)
@@ -480,55 +563,6 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       }
     }
     return null
-  }
-
-  // Génération des documents nécessaires
-  const generateDocumentsList = () => {
-    const documents: string[] = []
-
-    // Documents basés sur les porteurs
-    porteurs.forEach(porteur => {
-      const structure = structures.find(s => s.id === porteur.structureId)
-      if (structure) {
-        if (structure.type === 'PERSONNE_PHYSIQUE') {
-          documents.push(`${structure.nom} - Pièce d'identité`)
-          documents.push(`${structure.nom} - Justificatif de domicile`)
-          documents.push(`${structure.nom} - Derniers bulletins de salaire`)
-          documents.push(`${structure.nom} - Avis d'imposition`)
-        } else {
-          documents.push(`${structure.nom} - Kbis`)
-          documents.push(`${structure.nom} - Statuts de la société`)
-          documents.push(`${structure.nom} - Bilans comptables`)
-        }
-      }
-    })
-
-    // Documents pour le bien
-    documents.push('Compromis de vente')
-    documents.push('Diagnostics immobiliers')
-    documents.push('Plan cadastral')
-    documents.push('Titre de propriété')
-
-    // Photos du bien
-    if (photos.length > 0) {
-      documents.push(`Photos du bien (${photos.length} photo${photos.length > 1 ? 's' : ''})`)
-    }
-
-    // Documents pour les travaux
-    if (travaux.length > 0) {
-      travaux.forEach(t => {
-        documents.push(`Devis - ${t.type || 'Travaux'}`)
-      })
-    }
-
-    // Documents pour le financement
-    if (financement.apportPersonnel < (financement.prixAchat + financement.fraisNotaire + financement.montantTravaux)) {
-      documents.push('Offre de prêt bancaire')
-      documents.push('Plan de financement')
-      documents.push('Simulation de crédit')
-    }
-
-    return documents
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1488,6 +1522,107 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                       </div>
                     </div>
                   </Card>
+
+                  {/* Section 5: Analyse serveur (projet sauvegardé) */}
+                  {initialProjet?.id && (
+                    <Card className="p-6 bg-indigo-50 border-indigo-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold text-indigo-900 flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Analyse complète (serveur)
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={handleCalculateRentabilite}
+                          disabled={analysisLoading}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {analysisLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          {analysisLoading ? 'Calcul...' : 'Recalculer'}
+                        </button>
+                      </div>
+
+                      {analysisLoading && !analysisData && (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
+                        </div>
+                      )}
+
+                      {analysisData && (
+                        <div className="space-y-3">
+                          {/* KPI Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">Rentabilité brute</p>
+                              <p className={`text-xl font-bold ${(analysisData.rentabiliteBrute || 0) >= 5 ? 'text-green-600' : (analysisData.rentabiliteBrute || 0) >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
+                                {(analysisData.rentabiliteBrute || 0).toFixed(2)}%
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">Rentabilité nette</p>
+                              <p className={`text-xl font-bold ${(analysisData.rentabiliteNette || 0) >= 3.5 ? 'text-green-600' : (analysisData.rentabiliteNette || 0) >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
+                                {(analysisData.rentabiliteNette || 0).toFixed(2)}%
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">Cash-flow mensuel</p>
+                              <p className={`text-xl font-bold ${(analysisData.cashFlowMensuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {(analysisData.cashFlowMensuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowMensuel || 0).toLocaleString('fr-FR')} €
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">Cash-flow annuel</p>
+                              <p className={`text-xl font-bold ${(analysisData.cashFlowAnnuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {(analysisData.cashFlowAnnuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowAnnuel || 0).toLocaleString('fr-FR')} €
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">ROI</p>
+                              <p className="text-xl font-bold text-indigo-700">
+                                {(analysisData.roi || 0).toFixed(2)}%
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                              <p className="text-xs text-gray-500">Taux endettement</p>
+                              <p className={`text-xl font-bold ${(analysisData.tauxEndettementProjet || 0) <= 35 ? 'text-green-600' : 'text-red-600'}`}>
+                                {(analysisData.tauxEndettementProjet || 0).toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Détails supplémentaires */}
+                          <div className="bg-white rounded-lg p-3 border border-indigo-200">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Charges annuelles estimées</span>
+                              <span className="font-semibold">{(analysisData.chargesAnnuelles || 0).toLocaleString('fr-FR')} €</span>
+                            </div>
+                            <div className="flex justify-between text-sm mt-1">
+                              <span className="text-gray-600">Récupération de l'apport</span>
+                              <span className="font-semibold">
+                                {(analysisData.anneesRecuperationApport || 0) > 0
+                                  ? `${(analysisData.anneesRecuperationApport || 0).toFixed(1)} ans`
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-indigo-600 italic">
+                            Analyse calculée sur les données sauvegardées en base. Sauvegardez le projet puis recalculez pour mettre à jour.
+                          </p>
+                        </div>
+                      )}
+
+                      {!analysisData && !analysisLoading && (
+                        <p className="text-sm text-gray-500 text-center py-4">
+                          Cliquez sur "Recalculer" pour lancer l'analyse complète du projet.
+                        </p>
+                      )}
+                    </Card>
+                  )}
                 </>
               )
             })()}
@@ -1497,33 +1632,161 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         {/* Onglet 7: Documents nécessaires */}
         {activeTab === 'documents' && (
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold mb-4">Documents nécessaires pour le dossier</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">Checklist des documents</h3>
+              {initialProjet?.id && (
+                <button
+                  type="button"
+                  onClick={handleGenerateChecklist}
+                  disabled={checklistLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {checklistLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {checklistGenerated ? 'Régénérer' : 'Générer la checklist'}
+                </button>
+              )}
+            </div>
 
-            <p className="text-sm text-gray-600 mb-4">
-              Liste générée automatiquement en fonction des informations du projet
-            </p>
-
-            {generateDocumentsList().length === 0 ? (
+            {/* Pas de projet sauvegardé */}
+            {!initialProjet?.id && (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Complétez les onglets précédents pour générer la liste</p>
+                <p className="text-gray-500">Sauvegardez d'abord le projet pour générer la checklist des documents</p>
               </div>
-            ) : (
-              <Card className="p-4">
-                <ul className="space-y-2">
-                  {generateDocumentsList().map((doc, index) => (
-                    <li key={index} className="flex items-start gap-3 text-sm">
-                      <CheckCircle className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <span>{doc}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
             )}
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
+            {/* Loading */}
+            {checklistLoading && checklistDocs.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+              </div>
+            )}
+
+            {/* Checklist avec barre de progression */}
+            {checklistDocs.length > 0 && (() => {
+              const total = checklistDocs.length
+              const fournis = checklistDocs.filter(d => d.statut === 'Fourni' || d.statut === 'Valide').length
+              const progression = total > 0 ? Math.round((fournis / total) * 100) : 0
+
+              // Grouper par catégorie
+              const categories = checklistDocs.reduce((acc, doc) => {
+                const cat = doc.categorie || 'Autre'
+                if (!acc[cat]) acc[cat] = []
+                acc[cat].push(doc)
+                return acc
+              }, {} as Record<string, ChecklistDocument[]>)
+
+              const categorieLabels: Record<string, string> = {
+                'Identite': 'Identité',
+                'Revenus': 'Revenus',
+                'Patrimoine': 'Patrimoine',
+                'Fiscalite': 'Fiscalité',
+                'Societe': 'Société',
+                'Bien_Immobilier': 'Bien Immobilier',
+                'Travaux': 'Travaux',
+                'Autre': 'Autre'
+              }
+
+              const statutColors: Record<string, string> = {
+                'Non_Fourni': 'bg-red-100 text-red-700 border-red-300',
+                'En_Attente': 'bg-orange-100 text-orange-700 border-orange-300',
+                'Fourni': 'bg-green-100 text-green-700 border-green-300',
+                'Valide': 'bg-blue-100 text-blue-700 border-blue-300'
+              }
+
+              const statutLabels: Record<string, string> = {
+                'Non_Fourni': 'Non fourni',
+                'En_Attente': 'En attente',
+                'Fourni': 'Fourni',
+                'Valide': 'Validé'
+              }
+
+              const nextStatut: Record<string, string> = {
+                'Non_Fourni': 'En_Attente',
+                'En_Attente': 'Fourni',
+                'Fourni': 'Valide',
+                'Valide': 'Non_Fourni'
+              }
+
+              return (
+                <>
+                  {/* Barre de progression */}
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Progression</span>
+                      <span className="text-sm font-bold text-blue-600">{fournis}/{total} documents ({progression}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className={`h-3 rounded-full transition-all duration-500 ${progression === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: `${progression}%` }}
+                      />
+                    </div>
+                  </Card>
+
+                  {/* Documents par catégorie */}
+                  {Object.entries(categories).map(([categorie, docs]) => (
+                    <Card key={categorie} className="p-4">
+                      <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-500" />
+                        {categorieLabels[categorie] || categorie}
+                        <span className="text-xs text-gray-400 font-normal">({docs.length})</span>
+                      </h4>
+                      <div className="space-y-2">
+                        {docs.map(doc => {
+                          const structure = doc.concerneStructureId
+                            ? structures.find(s => s.id === doc.concerneStructureId)
+                            : null
+                          return (
+                            <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">{doc.nomDocument}</p>
+                                {structure && (
+                                  <p className="text-xs text-gray-500 truncate">{structure.nom}</p>
+                                )}
+                                {doc.description && (
+                                  <p className="text-xs text-gray-400 truncate">{doc.description}</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateDocumentStatus(doc.id, nextStatut[doc.statut] || 'Non_Fourni')}
+                                className={`ml-3 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${statutColors[doc.statut] || 'bg-gray-100 text-gray-600 border-gray-300'}`}
+                              >
+                                {statutLabels[doc.statut] || doc.statut}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </Card>
+                  ))}
+                </>
+              )
+            })()}
+
+            {/* Checklist non générée et projet sauvegardé */}
+            {initialProjet?.id && !checklistLoading && checklistDocs.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">Aucune checklist générée pour ce projet</p>
+                <button
+                  type="button"
+                  onClick={handleGenerateChecklist}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  Générer la checklist des documents
+                </button>
+              </div>
+            )}
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-2">
               <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> Cette liste est indicative. Des documents supplémentaires peuvent être demandés par votre banque ou notaire.
+                <strong>Note :</strong> Cliquez sur le statut d'un document pour le faire évoluer : Non fourni → En attente → Fourni → Validé.
               </p>
             </div>
           </div>

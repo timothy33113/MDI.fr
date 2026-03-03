@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Download, Eye, CheckCircle, AlertTriangle } from 'lucide-react'
 import { DossierSCI, Associe, PlanFinancement, BienImmobilier, TravauxDetail } from '@/types'
-import PDFPreview from '@/components/pdf/PDFPreview'
+import PDFGenerator from '@/services/pdfGenerator'
 
 interface RecapitulatifFormProps {
   project: Partial<DossierSCI>
@@ -43,7 +43,6 @@ const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({
   }
 
   const validation = getValidationStatus()
-  const [showPDFPreview, setShowPDFPreview] = useState(false)
 
   const completeDossier: DossierSCI = {
     id: project.id || '',
@@ -256,13 +255,18 @@ const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({
           <div className="flex space-x-3">
             <Button
               variant="secondary"
-              onClick={() => setShowPDFPreview(true)}
+              onClick={() => {
+                const pdfGen = new PDFGenerator()
+                const blob = pdfGen.getPDFBlob(completeDossier)
+                const url = URL.createObjectURL(blob)
+                window.open(url, '_blank')
+              }}
               disabled={!validation.isValid}
             >
               <Eye className="h-4 w-4 mr-2" />
               Prévisualiser PDF
             </Button>
-            
+
             <Button
               onClick={onGeneratePDF}
               disabled={!validation.isValid}
@@ -274,14 +278,6 @@ const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({
           </div>
         </div>
       </Card>
-
-      {/* Modal de prévisualisation PDF */}
-      {showPDFPreview && (
-        <PDFPreview
-          dossier={completeDossier}
-          onClose={() => setShowPDFPreview(false)}
-        />
-      )}
     </div>
   )
 }

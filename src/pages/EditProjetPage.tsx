@@ -5,6 +5,7 @@ import ProjetFormV2 from '@/components/forms/ProjetFormV2';
 import { useStructuresContext as useStructures } from '@/contexts/StructuresContext';
 import { useProjets } from '@/hooks/useProjets';
 import { CreateProjetForm, Projet } from '@/types';
+import { pdfService } from '@/services/pdfService';
 
 const EditProjetPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -47,20 +48,20 @@ const EditProjetPage: React.FC = () => {
     try {
       console.log('🎯 Génération du dossier bancaire PDF...');
 
-      if (!projet) {
+      if (!id) {
         alert('Aucun projet chargé');
         return;
       }
 
-      // Importer le générateur de PDF
-      const PDFGeneratorPro = (await import('@/services/pdfGeneratorPro')).default;
-      const pdfGenerator = new PDFGeneratorPro();
+      // Utiliser pdfService pour récupérer les données complètes (avec rentabilité et checklist)
+      const result = await pdfService.downloadPDFPro(id);
 
-      // Générer et télécharger le PDF
-      pdfGenerator.downloadPDF(projet);
-      console.log('✅ PDF téléchargé avec succès');
-
-      alert('Dossier bancaire généré avec succès ! Le PDF a été téléchargé.');
+      if (result.success) {
+        console.log('✅ PDF téléchargé avec succès');
+        alert('Dossier bancaire généré avec succès ! Le PDF a été téléchargé.');
+      } else {
+        throw new Error(result.error || 'Erreur inconnue');
+      }
     } catch (error) {
       console.error('❌ Erreur lors de la génération du PDF:', error);
       alert('Erreur lors de la génération du dossier. Veuillez réessayer.');

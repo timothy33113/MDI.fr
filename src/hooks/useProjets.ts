@@ -67,11 +67,21 @@ export const useProjets = () => {
       if (response.data.success && response.data.data) {
         const data = response.data.data;
         // Combiner les données dans le format Projet attendu
+        // Mapper structure.id → structureId pour la compatibilité avec le formulaire
+        const mappedPorteurs = (data.porteurs || []).map((p: any) => ({
+          id: p.id,
+          projetId: data.projet.id,
+          structureId: p.structure?.id || p.structureId || '',
+          pourcentageProjet: p.pourcentageProjet || p.pourcentage_projet || 0,
+          structure: p.structure
+        }));
         return {
           ...data.projet,
           bienImmobilier: data.bienImmobilier,
           financement: data.financement,
-          porteurs: data.porteurs
+          porteurs: mappedPorteurs,
+          analysesRentabilite: data.analysesRentabilite,
+          checklistDocuments: data.checklistDocuments
         } as Projet;
       }
       return null;
@@ -200,7 +210,7 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.post(`/projets/${projetId}/analyser`);
+      const response = await api.post(`/projets/actions?id=${projetId}&action=analyser`);
       return response.data.data.analyse;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors du calcul de rentabilité';
@@ -215,7 +225,7 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.post(`/projets/${projetId}/checklist`);
+      const response = await api.post(`/projets/actions?id=${projetId}&action=checklist`);
       return response.data.data.documents;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors de la génération de la checklist';
@@ -230,7 +240,7 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/projets/${projetId}/checklist`);
+      const response = await api.get(`/projets/actions?id=${projetId}&action=checklist`);
       return response.data.data.documents;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erreur lors du chargement de la checklist');
@@ -248,7 +258,7 @@ export const useProjets = () => {
     try {
       setLoading(true);
       setError(null);
-      await api.patch(`/projets/${projetId}/checklist/${documentId}`, { statut });
+      await api.patch(`/projets/actions?id=${projetId}&action=checklist&documentId=${documentId}`, { statut });
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors de la mise à jour du document';
       setError(errorMsg);

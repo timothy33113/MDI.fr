@@ -2,30 +2,30 @@ import React, { useState, useEffect } from 'react'
 
 import Button from '@/components/ui/Button'
 import { Download, Eye, FileText, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'
-import { DossierSCI } from '@/types'
-import PDFGenerator from '@/services/pdfGenerator'
+import { Projet } from '@/types'
+import PDFGeneratorPro from '@/services/pdfGeneratorPro'
 
 interface PDFPreviewProps {
-  dossier: DossierSCI
+  projet: Projet
   onClose: () => void
 }
 
-const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
+const PDFPreview: React.FC<PDFPreviewProps> = ({ projet, onClose }) => {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     generatePDF()
-  }, [dossier])
+  }, [projet])
 
   const generatePDF = async () => {
     setIsGenerating(true)
     setError(null)
-    
+
     try {
-      const pdfGenerator = new PDFGenerator()
-      const blob = pdfGenerator.getPDFBlob(dossier)
+      const pdfGenerator = new PDFGeneratorPro()
+      const blob = pdfGenerator.getPDFBlob(projet)
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err) {
@@ -37,11 +37,9 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
   }
 
   const handleDownload = () => {
-    if (pdfUrl) {
-      const pdfGenerator = new PDFGenerator()
-      const filename = `dossier-${dossier.nomSCI || 'sci'}-${new Date().toISOString().split('T')[0]}.pdf`
-      pdfGenerator.downloadPDF(dossier, filename)
-    }
+    const pdfGenerator = new PDFGeneratorPro()
+    const filename = `dossier-bancaire-${projet.nom || 'projet'}-${new Date().toISOString().split('T')[0]}.pdf`
+    pdfGenerator.downloadPDF(projet, filename)
   }
 
   const handleRegenerate = () => {
@@ -65,14 +63,14 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
             <FileText className="h-6 w-6 text-primary-600 mr-3" />
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Prévisualisation PDF
+                Prévisualisation du dossier bancaire
               </h2>
               <p className="text-sm text-gray-600">
-                {dossier.nomSCI || 'Dossier SCI'}
+                {projet.nom || 'Projet'}
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             {error && (
               <div className="flex items-center text-red-600">
@@ -80,7 +78,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
                 <span className="text-sm">Erreur</span>
               </div>
             )}
-            
+
             <Button
               variant="secondary"
               onClick={handleRegenerate}
@@ -93,7 +91,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
               )}
               Régénérer
             </Button>
-            
+
             <Button
               onClick={handleDownload}
               disabled={!pdfUrl || isGenerating}
@@ -101,7 +99,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
               <Download className="h-4 w-4 mr-2" />
               Télécharger
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={onClose}
@@ -118,7 +116,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
               <div className="text-center">
                 <Loader2 className="h-12 w-12 text-primary-600 animate-spin mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Génération du PDF en cours...
+                  Génération du dossier bancaire...
                 </h3>
                 <p className="text-gray-600">
                   Veuillez patienter pendant que nous préparons votre document.
@@ -170,11 +168,11 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
               {pdfUrl && (
                 <div className="flex items-center">
                   <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                  <span>PDF généré avec succès</span>
+                  <span>Dossier bancaire généré avec succès</span>
                 </div>
               )}
             </div>
-            
+
             <div className="text-sm text-gray-500">
               Généré le {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}
             </div>
@@ -185,4 +183,4 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ dossier, onClose }) => {
   )
 }
 
-export default PDFPreview 
+export default PDFPreview
