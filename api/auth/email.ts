@@ -116,6 +116,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Action invalide', available: ['verify', 'resend'] });
   } catch (error: any) {
     console.error('Email error:', error);
-    return res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    return res.status(500).json({ error: 'Erreur serveur' });
   }
 }

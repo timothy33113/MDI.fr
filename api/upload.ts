@@ -216,10 +216,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (error: unknown) {
       console.error('Upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
       return res.status(500).json({
         error: 'Erreur lors de l\'upload',
-        details: errorMessage,
       });
     }
   }
@@ -248,10 +246,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     } catch (error: unknown) {
       console.error('Delete error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
       return res.status(500).json({
         error: 'Erreur lors de la suppression',
-        details: errorMessage,
       });
     }
   }

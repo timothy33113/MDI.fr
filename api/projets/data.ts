@@ -13,7 +13,11 @@ function getUserFromRequest(req: VercelRequest) {
 }
 
 function getSQL() {
-  return neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+  const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL not configured');
+  }
+  return neon(dbUrl);
 }
 
 /**
@@ -327,8 +331,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Error fetching project data:', error);
     return res.status(500).json({
       success: false,
-      error: 'Erreur serveur',
-      details: error.message
+      error: 'Erreur serveur'
     });
   }
 }

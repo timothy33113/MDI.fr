@@ -1,8 +1,77 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
+
+// Schema de validation pour la mise a jour
+const updateProjetSchema = z.object({
+  nom: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  status: z.string().optional(),
+  bien: z.object({
+    adresse: z.string().optional().nullable(),
+    codePostal: z.string().optional().nullable(),
+    ville: z.string().optional().nullable(),
+    type: z.string().optional().nullable(),
+    superficie: z.number().min(0).optional().nullable(),
+    nombrePieces: z.number().min(0).optional().nullable(),
+    nombreChambres: z.number().min(0).optional().nullable(),
+    nombreSDB: z.number().min(0).optional().nullable(),
+    anneeConstruction: z.number().optional().nullable(),
+    etatActuel: z.string().optional().nullable(),
+    dpe: z.string().optional().nullable(),
+    ges: z.string().optional().nullable(),
+    destinationBien: z.string().optional().nullable(),
+    loyerMensuelEstime: z.number().min(0).optional().nullable(),
+    chargesMensuelles: z.number().min(0).optional().nullable(),
+    taxeFonciere: z.number().min(0).optional().nullable(),
+  }).optional().nullable(),
+  financement: z.object({
+    prixAchat: z.number().min(0).default(0),
+    fraisNotaire: z.number().min(0).default(0),
+    fraisAgence: z.number().min(0).default(0),
+    montantTravaux: z.number().min(0).default(0),
+    fraisDossierBancaire: z.number().min(0).default(0),
+    fraisGarantie: z.number().min(0).default(0),
+    autresFrais: z.number().min(0).default(0),
+    coutTotalProjet: z.number().min(0).optional(),
+    apportPersonnel: z.number().min(0).default(0),
+    montantEmprunt: z.number().min(0).optional(),
+    dureeCredit: z.number().min(1).max(40).default(20),
+    tauxInteretEstime: z.number().min(0).max(20).default(3.5),
+    tauxAssuranceEstime: z.number().min(0).max(5).default(0.3),
+    typePret: z.string().default('Amortissable'),
+  }).optional().nullable(),
+  porteurs: z.array(z.object({
+    structureId: z.string().uuid(),
+    pourcentageProjet: z.number().min(0).max(100).default(100),
+  })).optional(),
+  elementsBien: z.array(z.object({
+    type: z.string().default('Autre'),
+    superficie: z.number().min(0).default(0),
+    nombrePieces: z.number().optional().nullable(),
+    etage: z.number().optional().nullable(),
+    etat: z.string().default('Bon'),
+    enLocation: z.boolean().default(false),
+    loyerMensuel: z.number().min(0).default(0),
+    chargesMensuelles: z.number().min(0).default(0),
+    equipements: z.array(z.string()).optional().nullable(),
+  })).optional(),
+  travaux: z.array(z.object({
+    categorie: z.string().optional(),
+    type: z.string().optional(),
+    description: z.string().default(''),
+    montant: z.number().min(0).default(0),
+    priorite: z.string().default('Moyenne'),
+    dureeEstimee: z.number().min(0).default(0),
+    artisan: z.string().optional().nullable(),
+    devisObtenu: z.boolean().default(false),
+    dateDebutPrevue: z.string().optional().nullable(),
+  })).optional(),
+  photos: z.array(z.union([z.string(), z.object({ url: z.string() }).passthrough()])).optional(),
+});
 
 function getUserFromRequest(req: VercelRequest) {
   const authHeader = req.headers.authorization;
@@ -13,7 +82,11 @@ function getUserFromRequest(req: VercelRequest) {
 }
 
 function getSQL() {
-  return neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+  const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL not configured');
+  }
+  return neon(dbUrl);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -212,6 +285,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body = JSON.parse(body);
       }
 
+      // Validation Zod
+      const validation = updateProjetSchema.safeParse(body || {});
+      if (!validation.success) {
+        return res.status(400).json({
+          error: 'Données invalides',
+          details: validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
+        });
+      }
+
       // Verifier que le projet existe et appartient a l'utilisateur
       const existing = await sql`
         SELECT id FROM projets WHERE id = ${id} AND user_id = ${user.userId}
@@ -221,7 +303,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'Projet non trouve' });
       }
 
-      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = body || {};
+      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = validation.data;
 
       // 1. Mettre a jour le projet
       await sql`
@@ -490,6 +572,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
     console.error('Projet error:', error);
-    return res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    return res.status(500).json({ error: 'Erreur serveur' });
   }
 }

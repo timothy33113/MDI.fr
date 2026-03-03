@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '1f5058adf2msh780e6a254e722f7p14cb6ajsn73fe1ad3ba46';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 
 function getUserFromRequest(req: VercelRequest): { userId: string; email: string } | null {
   const authHeader = req.headers.authorization;
@@ -72,8 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errorText = await response.text();
       console.error('RapidAPI error:', errorText);
       return res.status(response.status).json({
-        error: 'Erreur lors de la récupération de l\'annonce',
-        details: errorText
+        error: 'Erreur lors de la récupération de l\'annonce'
       });
     }
 
@@ -151,8 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('Leboncoin scrape error:', error);
     return res.status(500).json({
-      error: 'Erreur lors du scraping',
-      details: error.message
+      error: 'Erreur lors du scraping'
     });
   }
 }
