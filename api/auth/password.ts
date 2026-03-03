@@ -26,26 +26,12 @@ export const config = {
 };
 
 async function getBody(req: VercelRequest): Promise<any> {
-  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-    return req.body;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
-  if (typeof req.body === 'string' && req.body.length > 0) {
-    return JSON.parse(req.body);
-  }
-  if (Buffer.isBuffer(req.body)) {
-    const str = req.body.toString('utf8');
-    return str ? JSON.parse(str) : {};
-  }
-  try {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-    }
-    const rawBody = Buffer.concat(chunks).toString('utf8');
-    return rawBody ? JSON.parse(rawBody) : {};
-  } catch {
-    return {};
-  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  return raw ? JSON.parse(raw) : {};
 }
 
 function isValidPassword(password: string): { valid: boolean; errors: string[] } {
