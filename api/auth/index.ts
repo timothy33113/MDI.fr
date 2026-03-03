@@ -161,6 +161,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Action invalide', available: ['login', 'register'] });
   } catch (error: any) {
     console.error('Auth error:', error);
-    return res.status(500).json({ error: 'Erreur serveur', debug: error.message });
+    return res.status(500).json({ error: 'Erreur serveur' });
   }
 }
