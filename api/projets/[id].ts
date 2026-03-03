@@ -327,19 +327,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           bienId = existingBien[0].id;
           await sql`
             UPDATE biens_immobiliers_v2 SET
-              adresse = ${bien.adresse || null},
-              code_postal = ${bien.codePostal || null},
-              ville = ${bien.ville || null},
-              type = ${bien.type || null},
-              superficie = ${bien.superficie || null},
+              adresse = ${bien.adresse || ''},
+              code_postal = ${bien.codePostal || ''},
+              ville = ${bien.ville || ''},
+              type = ${bien.type || 'Autre'},
+              superficie = ${bien.superficie || 0},
               nombre_pieces = ${bien.nombrePieces || null},
               nombre_chambres = ${bien.nombreChambres || null},
               nombre_sdb = ${bien.nombreSDB || null},
               annee_construction = ${bien.anneeConstruction || null},
-              etat_actuel = ${bien.etatActuel || null},
+              etat_actuel = ${bien.etatActuel || 'Non renseigné'},
               dpe = ${bien.dpe || null},
               ges = ${bien.ges || null},
-              destination_bien = ${bien.destinationBien || null},
+              destination_bien = ${bien.destinationBien || 'Non renseigné'},
               loyer_mensuel_estime = ${bien.loyerMensuelEstime || null},
               charges_mensuelles = ${bien.chargesMensuelles || null},
               taxe_fonciere = ${bien.taxeFonciere || null},
@@ -355,11 +355,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               loyer_mensuel_estime, charges_mensuelles, taxe_fonciere
             ) VALUES (
               ${id},
-              ${bien.adresse || null}, ${bien.codePostal || null}, ${bien.ville || null},
-              ${bien.type || null}, ${bien.superficie || null},
+              ${bien.adresse || ''}, ${bien.codePostal || ''}, ${bien.ville || ''},
+              ${bien.type || 'Autre'}, ${bien.superficie || 0},
               ${bien.nombrePieces || null}, ${bien.nombreChambres || null}, ${bien.nombreSDB || null},
-              ${bien.anneeConstruction || null}, ${bien.etatActuel || null},
-              ${bien.dpe || null}, ${bien.ges || null}, ${bien.destinationBien || null},
+              ${bien.anneeConstruction || null}, ${bien.etatActuel || 'Non renseigné'},
+              ${bien.dpe || null}, ${bien.ges || null}, ${bien.destinationBien || 'Non renseigné'},
               ${bien.loyerMensuelEstime || null}, ${bien.chargesMensuelles || null}, ${bien.taxeFonciere || null}
             )
             RETURNING id
