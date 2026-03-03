@@ -31,8 +31,10 @@ async function getBody(req: VercelRequest): Promise<any> {
     const body = req.body;
     if (body && typeof body === 'object') return body;
     if (typeof body === 'string') return JSON.parse(body);
-  } catch {
+  } catch (e: any) {
     // req.body getter can throw "Invalid JSON" in some Vercel runtime versions
+    // Log what's happening for debugging
+    console.error('[getBody] req.body failed:', e.message);
   }
   // Fallback: read from stream
   const chunks: Buffer[] = [];
@@ -40,7 +42,16 @@ async function getBody(req: VercelRequest): Promise<any> {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   const raw = Buffer.concat(chunks).toString('utf8');
-  return raw ? JSON.parse(raw) : {};
+  console.error('[getBody] stream raw (first 200 chars):', raw.substring(0, 200));
+  console.error('[getBody] stream raw length:', raw.length);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (e2: any) {
+    console.error('[getBody] stream parse failed:', e2.message);
+    // Last resort: try to handle URL-encoded or other formats
+    throw new Error(`Body parse failed. req.body error, stream content (${raw.length} chars): ${raw.substring(0, 100)}`);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
