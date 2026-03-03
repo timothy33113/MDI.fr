@@ -123,19 +123,49 @@ class PDFGeneratorPro {
     this.doc.text('Sommaire', this.pageWidth / 2, this.currentY, { align: 'center' })
     this.currentY += 30
 
-    const sections = [
-      { title: 'I Situation personnelle', page: 3 },
-      { title: '  1) Porteurs du projet', page: 3 },
-      { title: 'II Le projet', page: projet.porteurs?.length ? 4 + projet.porteurs.length : 5 },
-      { title: '  1) Situation géographique', page: projet.porteurs?.length ? 4 + projet.porteurs.length : 5 },
-      { title: '  2) Le bien et son projet', page: projet.porteurs?.length ? 5 + projet.porteurs.length : 6 },
-      { title: '  3) Financement', page: projet.porteurs?.length ? 6 + projet.porteurs.length : 7 },
+    const nPorteurs = projet.porteurs?.length || 1
+    const baseProjet = 3 + nPorteurs
+    const hasPatrimoine = projet.porteurs?.some(p => {
+      const d = p.structure?.personnePhysique || p.structure?.personneMorale
+      return d?.biens?.length || d?.credits?.length || d?.comptes?.length
+    })
+    const hasRentabilite = projet.analysesRentabilite && (projet.analysesRentabilite.rentabiliteBrute > 0 || projet.analysesRentabilite.cashFlowMensuel !== 0)
+    const hasChecklist = projet.checklistDocuments && projet.checklistDocuments.length > 0
+
+    const sections: { title: string; page: string }[] = [
+      { title: 'I Situation personnelle', page: '3' },
+      { title: '  1) Porteurs du projet', page: '3' },
+      { title: 'II Le projet', page: `${baseProjet}` },
+      { title: '  1) Situation geographique', page: `${baseProjet}` },
+      { title: '  2) Le bien et son projet', page: `${baseProjet + 1}` },
+      { title: '  3) Financement', page: `${baseProjet + 2}` },
     ]
+
+    let nextPage = baseProjet + 3
+    if (hasPatrimoine) {
+      sections.push({ title: '  4) Patrimoine existant', page: `${nextPage}` })
+      nextPage++
+    }
+    if (hasRentabilite) {
+      sections.push({ title: '  5) Analyse de rentabilite', page: `${nextPage}` })
+      nextPage++
+    }
+    if (hasChecklist) {
+      sections.push({ title: 'III Documents requis', page: `${nextPage}` })
+      nextPage++
+    }
+    sections.push({ title: 'Annexes', page: `${nextPage}` })
 
     this.doc.setFontSize(12)
     this.doc.setFont('helvetica', 'normal')
 
     sections.forEach(section => {
+      const isMainSection = !section.title.startsWith('  ')
+      if (isMainSection) {
+        this.doc.setFont('helvetica', 'bold')
+      } else {
+        this.doc.setFont('helvetica', 'normal')
+      }
       this.doc.text(section.title, this.margin + 10, this.currentY)
       const dots = '...........................................................................'
       const dotsWidth = this.doc.getTextWidth(dots)
@@ -210,20 +240,56 @@ class PDFGeneratorPro {
         this.doc.text(`Email: ${porteur.structure.email}`, boxX + 5, infoY)
       }
 
-      // Informations financières à droite
+      // Informations patrimoniales a droite
       const rightX = boxX + boxWidth + 10
       let rightY = this.currentY + 15
+      const pp = porteur.structure?.personnePhysique
+      const pm = porteur.structure?.personneMorale
+      const data = pp || pm
 
-      this.doc.setFontSize(13)
+      // Revenus
+      this.doc.setFontSize(11)
       this.doc.setFont('helvetica', 'bold')
       this.doc.setTextColor(...this.colors.text)
-      this.doc.text('ÉCONOMIES', rightX, rightY)
+      this.doc.text('REVENUS', rightX, rightY)
+      rightY += 8
 
-      rightY += 10
-      this.doc.setFontSize(10)
+      this.doc.setFontSize(9)
       this.doc.setFont('helvetica', 'normal')
-      // TODO: Ajouter les informations d'épargne si disponibles
-      this.doc.text('Voir annexes financières', rightX, rightY)
+      if (data?.revenus && Array.isArray(data.revenus) && data.revenus.length > 0) {
+        data.revenus.forEach((rev: any) => {
+          const montant = parseFloat(rev.montantMensuel || rev.montant || 0)
+          this.doc.text(`${rev.type || 'Revenu'}: ${montant.toLocaleString('fr-FR')} EUR/mois`, rightX, rightY)
+          rightY += 5
+        })
+      } else {
+        this.doc.text('Non renseigne', rightX, rightY)
+        rightY += 5
+      }
+
+      rightY += 5
+      this.doc.setFontSize(11)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.text('PATRIMOINE', rightX, rightY)
+      rightY += 8
+
+      this.doc.setFontSize(9)
+      this.doc.setFont('helvetica', 'normal')
+      if (data?.biens && Array.isArray(data.biens) && data.biens.length > 0) {
+        this.doc.text(`${data.biens.length} bien(s) existant(s)`, rightX, rightY)
+        rightY += 5
+      }
+      if (data?.credits && Array.isArray(data.credits) && data.credits.length > 0) {
+        this.doc.text(`${data.credits.length} credit(s) en cours`, rightX, rightY)
+        rightY += 5
+      }
+      if (data?.comptes && Array.isArray(data.comptes) && data.comptes.length > 0) {
+        this.doc.text(`${data.comptes.length} compte(s) bancaire(s)`, rightX, rightY)
+        rightY += 5
+      }
+      if (!data?.biens?.length && !data?.credits?.length && !data?.comptes?.length) {
+        this.doc.text('Non renseigne', rightX, rightY)
+      }
 
       this.currentY += boxHeight + 20
     })
@@ -431,6 +497,380 @@ class PDFGeneratorPro {
   }
 
   /**
+   * Helper: dessiner un rectangle arrondi avec titre
+   */
+  private drawSectionBox(title: string, y: number, height: number): number {
+    this.doc.setFillColor(248, 245, 240)
+    this.doc.roundedRect(this.margin, y, this.pageWidth - 2 * this.margin, height, 2, 2, 'F')
+    this.doc.setDrawColor(...this.colors.primary)
+    this.doc.setLineWidth(0.3)
+    this.doc.roundedRect(this.margin, y, this.pageWidth - 2 * this.margin, height, 2, 2)
+
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.accent)
+    this.doc.text(title, this.margin + 5, y + 7)
+    return y + 14
+  }
+
+  /**
+   * Helper: verifier et ajouter une nouvelle page si necessaire
+   */
+  private checkPageBreak(requiredSpace: number): void {
+    if (this.currentY + requiredSpace > this.pageHeight - 25) {
+      this.addPageBreak()
+      this.currentY = 30
+    }
+  }
+
+  /**
+   * Genere la section patrimoine des porteurs
+   */
+  private generatePatrimoine(projet: Projet): void {
+    if (!projet.porteurs || projet.porteurs.length === 0) return
+
+    let hasPatrimoineData = false
+    for (const porteur of projet.porteurs) {
+      const data = porteur.structure?.personnePhysique || porteur.structure?.personneMorale
+      if (data?.biens?.length || data?.credits?.length || data?.comptes?.length) {
+        hasPatrimoineData = true
+        break
+      }
+    }
+    if (!hasPatrimoineData) return
+
+    this.addPageBreak()
+    this.currentY = 40
+
+    this.doc.setFontSize(14)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text('4) Patrimoine existant', this.margin, this.currentY)
+    this.currentY += 15
+
+    projet.porteurs.forEach(porteur => {
+      const data = porteur.structure?.personnePhysique || porteur.structure?.personneMorale
+      if (!data) return
+
+      this.checkPageBreak(40)
+
+      // Nom du porteur
+      this.doc.setFontSize(12)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.accent)
+      this.doc.text(porteur.structure?.nom || 'Porteur', this.margin, this.currentY)
+      this.currentY += 10
+
+      // Biens existants
+      if (data.biens && Array.isArray(data.biens) && data.biens.length > 0) {
+        this.checkPageBreak(10 + data.biens.length * 8)
+        const boxStart = this.currentY
+        const boxHeight = 14 + data.biens.length * 7
+        const innerY = this.drawSectionBox('Biens immobiliers', boxStart, boxHeight)
+
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+        let lineY = innerY
+        data.biens.forEach((bien: any) => {
+          const adresse = bien.adresse || bien.type || 'Bien'
+          const valeur = parseFloat(bien.valeurEstimee || bien.valeur || 0)
+          const loyer = parseFloat(bien.loyerMensuel || bien.loyer || 0)
+          let line = `${adresse}`
+          if (valeur > 0) line += ` - Valeur: ${valeur.toLocaleString('fr-FR')} EUR`
+          if (loyer > 0) line += ` - Loyer: ${loyer.toLocaleString('fr-FR')} EUR/mois`
+          this.doc.text(line, this.margin + 5, lineY)
+          lineY += 7
+        })
+        this.currentY = boxStart + boxHeight + 8
+      }
+
+      // Credits en cours
+      if (data.credits && Array.isArray(data.credits) && data.credits.length > 0) {
+        this.checkPageBreak(10 + data.credits.length * 8)
+        const boxStart = this.currentY
+        const boxHeight = 14 + data.credits.length * 7
+        const innerY = this.drawSectionBox('Credits en cours', boxStart, boxHeight)
+
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+        let lineY = innerY
+        data.credits.forEach((credit: any) => {
+          const org = credit.organisme || credit.banque || 'Credit'
+          const mensualite = parseFloat(credit.mensualite || credit.montantMensuel || 0)
+          const capital = parseFloat(credit.capitalRestant || credit.restant || 0)
+          let line = `${org}`
+          if (mensualite > 0) line += ` - ${mensualite.toLocaleString('fr-FR')} EUR/mois`
+          if (capital > 0) line += ` - Capital restant: ${capital.toLocaleString('fr-FR')} EUR`
+          this.doc.text(line, this.margin + 5, lineY)
+          lineY += 7
+        })
+        this.currentY = boxStart + boxHeight + 8
+      }
+
+      // Comptes bancaires
+      if (data.comptes && Array.isArray(data.comptes) && data.comptes.length > 0) {
+        this.checkPageBreak(10 + data.comptes.length * 8)
+        const boxStart = this.currentY
+        const boxHeight = 14 + data.comptes.length * 7
+        const innerY = this.drawSectionBox('Comptes bancaires', boxStart, boxHeight)
+
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+        let lineY = innerY
+        data.comptes.forEach((compte: any) => {
+          const banque = compte.banque || compte.nom || 'Compte'
+          const solde = parseFloat(compte.solde || 0)
+          let line = `${banque}`
+          if (compte.type || compte.typeCompte) line += ` (${compte.type || compte.typeCompte})`
+          if (solde > 0) line += ` - Solde: ${solde.toLocaleString('fr-FR')} EUR`
+          this.doc.text(line, this.margin + 5, lineY)
+          lineY += 7
+        })
+        this.currentY = boxStart + boxHeight + 8
+      }
+
+      this.currentY += 5
+    })
+  }
+
+  /**
+   * Genere la section analyse de rentabilite
+   */
+  private generateRentabilite(projet: Projet): void {
+    const a = projet.analysesRentabilite
+    if (!a || (a.rentabiliteBrute === 0 && a.cashFlowMensuel === 0)) return
+
+    this.addPageBreak()
+    this.currentY = 40
+
+    this.doc.setFontSize(14)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text('5) Analyse de rentabilite', this.margin, this.currentY)
+    this.currentY += 20
+
+    // Indicateurs cles dans des encadres
+    const colWidth = (this.pageWidth - 2 * this.margin - 10) / 3
+    const boxH = 35
+    const indicators = [
+      { label: 'Rentabilite brute', value: `${a.rentabiliteBrute.toFixed(2)}%`, color: [76, 175, 80] },
+      { label: 'Rentabilite nette', value: `${a.rentabiliteNette.toFixed(2)}%`, color: [33, 150, 243] },
+      { label: 'Cash-flow mensuel', value: `${a.cashFlowMensuel >= 0 ? '+' : ''}${a.cashFlowMensuel.toFixed(0)} EUR`, color: a.cashFlowMensuel >= 0 ? [76, 175, 80] : [244, 67, 54] },
+    ]
+
+    indicators.forEach((ind, i) => {
+      const x = this.margin + i * (colWidth + 5)
+      // Fond
+      this.doc.setFillColor(248, 248, 248)
+      this.doc.roundedRect(x, this.currentY, colWidth, boxH, 2, 2, 'F')
+      // Bordure coloree en haut
+      this.doc.setFillColor(ind.color[0], ind.color[1], ind.color[2])
+      this.doc.rect(x, this.currentY, colWidth, 3, 'F')
+
+      // Label
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(120, 120, 120)
+      this.doc.text(ind.label, x + colWidth / 2, this.currentY + 13, { align: 'center' })
+
+      // Valeur
+      this.doc.setFontSize(16)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(ind.color[0], ind.color[1], ind.color[2])
+      this.doc.text(ind.value, x + colWidth / 2, this.currentY + 27, { align: 'center' })
+    })
+
+    this.currentY += boxH + 20
+
+    // Tableau detaille
+    this.doc.setFontSize(12)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text('Detail de l\'analyse', this.margin, this.currentY)
+    this.currentY += 10
+
+    const rows = [
+      { label: 'Cash-flow annuel', value: `${a.cashFlowAnnuel >= 0 ? '+' : ''}${a.cashFlowAnnuel.toFixed(0)} EUR` },
+      { label: 'ROI sur apport', value: `${a.roi.toFixed(2)}%` },
+      { label: 'Charges annuelles', value: `${a.chargesAnnuelles.toFixed(0)} EUR` },
+      { label: 'Taux d\'endettement projet', value: `${a.tauxEndettementProjet.toFixed(1)}%` },
+      { label: 'Revenus porteurs (mensuel)', value: `${a.revenusPorteurs.toFixed(0)} EUR` },
+    ]
+
+    if (a.anneesRecuperationApport > 0) {
+      rows.push({ label: 'Recuperation de l\'apport', value: `${a.anneesRecuperationApport.toFixed(1)} ans` })
+    }
+
+    const tableWidth = this.pageWidth - 2 * this.margin
+    const rowH = 9
+
+    rows.forEach((row, i) => {
+      // Fond alterne
+      if (i % 2 === 0) {
+        this.doc.setFillColor(248, 245, 240)
+        this.doc.rect(this.margin, this.currentY - 5, tableWidth, rowH, 'F')
+      }
+
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      this.doc.text(row.label, this.margin + 5, this.currentY)
+
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.text(row.value, this.pageWidth - this.margin - 5, this.currentY, { align: 'right' })
+
+      this.currentY += rowH
+    })
+
+    // Barre visuelle de rentabilite
+    this.currentY += 15
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text('Indicateur de rentabilite brute', this.margin, this.currentY)
+    this.currentY += 8
+
+    const barWidth = this.pageWidth - 2 * this.margin
+    const barH = 10
+    // Fond gris
+    this.doc.setFillColor(230, 230, 230)
+    this.doc.roundedRect(this.margin, this.currentY, barWidth, barH, 2, 2, 'F')
+    // Barre coloree (max 15% pour l'echelle)
+    const pct = Math.min(a.rentabiliteBrute / 15, 1)
+    const fillColor = a.rentabiliteBrute >= 7 ? [76, 175, 80] : a.rentabiliteBrute >= 4 ? [255, 152, 0] : [244, 67, 54]
+    this.doc.setFillColor(fillColor[0], fillColor[1], fillColor[2])
+    this.doc.roundedRect(this.margin, this.currentY, barWidth * pct, barH, 2, 2, 'F')
+    // Label sur la barre
+    this.doc.setFontSize(8)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(255, 255, 255)
+    if (pct > 0.15) {
+      this.doc.text(`${a.rentabiliteBrute.toFixed(1)}%`, this.margin + barWidth * pct - 15, this.currentY + 7)
+    }
+  }
+
+  /**
+   * Genere la section checklist documents
+   */
+  private generateChecklist(projet: Projet): void {
+    if (!projet.checklistDocuments || projet.checklistDocuments.length === 0) return
+
+    this.addPageBreak()
+    this.currentY = 40
+
+    this.doc.setFontSize(18)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text('III Documents requis', this.margin, this.currentY)
+    this.currentY += 20
+
+    // Grouper par categorie
+    const grouped: Record<string, any[]> = {}
+    projet.checklistDocuments.forEach(doc => {
+      const cat = doc.categorie || 'Autre'
+      if (!grouped[cat]) grouped[cat] = []
+      grouped[cat].push(doc)
+    })
+
+    // Compteurs de progression
+    const total = projet.checklistDocuments.length
+    const fournis = projet.checklistDocuments.filter(d => d.statut === 'Fourni' || d.statut === 'Valide').length
+    const enAttente = projet.checklistDocuments.filter(d => d.statut === 'En_Attente').length
+
+    // Barre de progression globale
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text(`Progression: ${fournis}/${total} documents fournis`, this.margin, this.currentY)
+    this.currentY += 7
+
+    const barWidth = this.pageWidth - 2 * this.margin
+    const barH = 6
+    this.doc.setFillColor(230, 230, 230)
+    this.doc.roundedRect(this.margin, this.currentY, barWidth, barH, 2, 2, 'F')
+    if (fournis > 0) {
+      this.doc.setFillColor(76, 175, 80)
+      this.doc.roundedRect(this.margin, this.currentY, barWidth * (fournis / total), barH, 2, 2, 'F')
+    }
+    if (enAttente > 0) {
+      this.doc.setFillColor(255, 152, 0)
+      this.doc.roundedRect(this.margin + barWidth * (fournis / total), this.currentY, barWidth * (enAttente / total), barH, 0, 0, 'F')
+    }
+    this.currentY += barH + 15
+
+    // Categories
+    const catLabels: Record<string, string> = {
+      'Identite': 'Identite',
+      'Revenus': 'Justificatifs de revenus',
+      'Patrimoine': 'Patrimoine',
+      'Fiscalite': 'Fiscalite',
+      'Societe': 'Documents societe',
+      'Bien_Immobilier': 'Bien immobilier',
+      'Travaux': 'Travaux',
+      'Autre': 'Autres documents'
+    }
+
+    Object.entries(grouped).forEach(([cat, docs]) => {
+      this.checkPageBreak(15 + docs.length * 8)
+
+      // Titre de categorie
+      this.doc.setFontSize(11)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.accent)
+      this.doc.text(catLabels[cat] || cat, this.margin, this.currentY)
+      this.currentY += 7
+
+      // Documents
+      docs.forEach(d => {
+        // Pastille de statut
+        const statusColors: Record<string, number[]> = {
+          'Non_Fourni': [244, 67, 54],
+          'En_Attente': [255, 152, 0],
+          'Fourni': [76, 175, 80],
+          'Valide': [33, 150, 243]
+        }
+        const statusLabels: Record<string, string> = {
+          'Non_Fourni': 'Manquant',
+          'En_Attente': 'En attente',
+          'Fourni': 'Fourni',
+          'Valide': 'Valide'
+        }
+        const color = statusColors[d.statut] || [150, 150, 150]
+
+        // Cercle de statut
+        this.doc.setFillColor(color[0], color[1], color[2])
+        this.doc.circle(this.margin + 5, this.currentY - 1.5, 2, 'F')
+
+        // Nom du document
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+        const oblig = d.obligatoire ? ' *' : ''
+        this.doc.text(`${d.nomDocument}${oblig}`, this.margin + 10, this.currentY)
+
+        // Statut a droite
+        this.doc.setTextColor(color[0], color[1], color[2])
+        this.doc.text(statusLabels[d.statut] || d.statut, this.pageWidth - this.margin - 5, this.currentY, { align: 'right' })
+
+        this.currentY += 7
+      })
+
+      this.currentY += 5
+    })
+
+    // Legende
+    this.checkPageBreak(20)
+    this.currentY += 5
+    this.doc.setFontSize(8)
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setTextColor(120, 120, 120)
+    this.doc.text('* Document obligatoire', this.margin, this.currentY)
+  }
+
+  /**
    * Génère la page des annexes
    */
   private generateAnnexes(): void {
@@ -523,10 +963,19 @@ class PDFGeneratorPro {
     // 6. Financement
     this.generateFinancement(projet)
 
-    // 7. Annexes
+    // 7. Patrimoine existant
+    this.generatePatrimoine(projet)
+
+    // 8. Analyse de rentabilite
+    this.generateRentabilite(projet)
+
+    // 9. Checklist documents
+    this.generateChecklist(projet)
+
+    // 10. Annexes
     this.generateAnnexes()
 
-    // 8. Pieds de page
+    // 11. Pieds de page
     this.addFooters()
 
     return this.doc

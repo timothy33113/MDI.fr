@@ -11,6 +11,8 @@ interface ProjectDataResponse {
     bienImmobilier: any
     financement: any
     porteurs: any[]
+    analysesRentabilite: any
+    checklistDocuments: any[]
     legacy: DossierSCI
   }
   error?: string
@@ -107,7 +109,7 @@ class PDFService {
         porteurs: response.data.porteurs,
         bienImmobilier: response.data.bienImmobilier,
         financement: response.data.financement,
-        analysesRentabilite: {
+        analysesRentabilite: response.data.analysesRentabilite || {
           id: '',
           projetId: response.data.projet.id,
           rentabiliteBrute: 0,
@@ -121,7 +123,7 @@ class PDFService {
           anneesRecuperationApport: 0,
           dateCalcul: new Date()
         },
-        checklistDocuments: [],
+        checklistDocuments: response.data.checklistDocuments || [],
         dateCreation: new Date(response.data.projet.dateCreation),
         dateModification: new Date(response.data.projet.dateModification)
       }
@@ -157,9 +159,29 @@ class PDFService {
     }
 
     try {
-      const dossier = response.data.legacy
-      const pdfGenerator = new PDFGenerator()
-      const blob = pdfGenerator.getPDFBlob(dossier)
+      const projet: Projet = {
+        id: response.data.projet.id,
+        userId: response.data.projet.userId,
+        nom: response.data.projet.nom,
+        description: response.data.projet.description,
+        status: response.data.projet.status,
+        porteurs: response.data.porteurs,
+        bienImmobilier: response.data.bienImmobilier,
+        financement: response.data.financement,
+        analysesRentabilite: response.data.analysesRentabilite || {
+          id: '', projetId: response.data.projet.id,
+          rentabiliteBrute: 0, chargesAnnuelles: 0, rentabiliteNette: 0,
+          cashFlowMensuel: 0, cashFlowAnnuel: 0, roi: 0,
+          revenusPorteurs: 0, tauxEndettementProjet: 0, anneesRecuperationApport: 0,
+          dateCalcul: new Date()
+        },
+        checklistDocuments: response.data.checklistDocuments || [],
+        dateCreation: new Date(response.data.projet.dateCreation),
+        dateModification: new Date(response.data.projet.dateModification)
+      }
+
+      const pdfGenerator = new PDFGeneratorPro()
+      const blob = pdfGenerator.getPDFBlob(projet)
       return { success: true, blob }
     } catch (error: any) {
       console.error('Error generating PDF blob:', error)
