@@ -5,6 +5,20 @@ import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
 
+// Valeurs autorisées par les CHECK constraints de la BDD
+const VALID_CATEGORIES_TRAVAUX = ['Gros_Oeuvre', 'Second_Oeuvre', 'Finitions', 'Equipements', 'Exterieur', 'Autre'];
+const VALID_ETATS = ['Neuf', 'Bon', 'A_Renover', 'A_Renover_Entierement'];
+const VALID_TYPES_BIEN = ['Appartement', 'Maison', 'Immeuble', 'Local_Commercial', 'Terrain', 'Autre'];
+const VALID_DESTINATIONS = ['Location', 'Residence_Principale', 'Revente', 'Autre'];
+const VALID_TYPES_ELEMENT = ['Appartement', 'Studio', 'Maison', 'Parking', 'Cave', 'Local_Commercial', 'Garage', 'Autre'];
+const VALID_PRIORITES = ['Haute', 'Moyenne', 'Basse'];
+const VALID_PHOTO_TYPES = ['Facade', 'Interieur', 'Avant_Travaux', 'Apres_Travaux', 'Plan', 'Autre'];
+
+function sanitize(value: string | undefined | null, validValues: string[], fallback: string): string {
+  if (!value) return fallback;
+  return validValues.includes(value) ? value : fallback;
+}
+
 // Schema de validation pour la mise a jour
 const updateProjetSchema = z.object({
   nom: z.string().min(1).max(255).optional(),
@@ -330,16 +344,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               adresse = ${bien.adresse || ''},
               code_postal = ${bien.codePostal || ''},
               ville = ${bien.ville || ''},
-              type = ${bien.type || 'Autre'},
+              type = ${sanitize(bien.type, VALID_TYPES_BIEN, 'Autre')},
               superficie = ${bien.superficie || 0},
               nombre_pieces = ${bien.nombrePieces || null},
               nombre_chambres = ${bien.nombreChambres || null},
               nombre_sdb = ${bien.nombreSDB || null},
               annee_construction = ${bien.anneeConstruction || null},
-              etat_actuel = ${bien.etatActuel || 'Non renseigné'},
+              etat_actuel = ${sanitize(bien.etatActuel, VALID_ETATS, 'Bon')},
               dpe = ${bien.dpe || null},
               ges = ${bien.ges || null},
-              destination_bien = ${bien.destinationBien || 'Non renseigné'},
+              destination_bien = ${sanitize(bien.destinationBien, VALID_DESTINATIONS, 'Autre')},
               loyer_mensuel_estime = ${bien.loyerMensuelEstime || null},
               charges_mensuelles = ${bien.chargesMensuelles || null},
               taxe_fonciere = ${bien.taxeFonciere || null},
@@ -356,10 +370,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ) VALUES (
               ${id},
               ${bien.adresse || ''}, ${bien.codePostal || ''}, ${bien.ville || ''},
-              ${bien.type || 'Autre'}, ${bien.superficie || 0},
+              ${sanitize(bien.type, VALID_TYPES_BIEN, 'Autre')}, ${bien.superficie || 0},
               ${bien.nombrePieces || null}, ${bien.nombreChambres || null}, ${bien.nombreSDB || null},
-              ${bien.anneeConstruction || null}, ${bien.etatActuel || 'Non renseigné'},
-              ${bien.dpe || null}, ${bien.ges || null}, ${bien.destinationBien || 'Non renseigné'},
+              ${bien.anneeConstruction || null}, ${sanitize(bien.etatActuel, VALID_ETATS, 'Bon')},
+              ${bien.dpe || null}, ${bien.ges || null}, ${sanitize(bien.destinationBien, VALID_DESTINATIONS, 'Autre')},
               ${bien.loyerMensuelEstime || null}, ${bien.chargesMensuelles || null}, ${bien.taxeFonciere || null}
             )
             RETURNING id
@@ -377,8 +391,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 en_location, loyer_mensuel, charges_mensuelles, equipements
               ) VALUES (
                 ${id},
-                ${elem.type || 'Autre'}, ${elem.superficie || 0}, ${elem.nombrePieces || null},
-                ${elem.etage || null}, ${elem.etat || 'Bon'},
+                ${sanitize(elem.type, VALID_TYPES_ELEMENT, 'Autre')}, ${elem.superficie || 0}, ${elem.nombrePieces || null},
+                ${elem.etage || null}, ${sanitize(elem.etat, VALID_ETATS, 'Bon')},
                 ${elem.enLocation || false}, ${elem.loyerMensuel || 0}, ${elem.chargesMensuelles || 0},
                 ${elem.equipements ? `{${elem.equipements.join(',')}}` : null}
               )
@@ -396,8 +410,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 priorite, duree_estimee, artisan, devis_obtenu, date_debut_prevue
               ) VALUES (
                 ${bienId},
-                ${t.categorie || t.type || 'Autre'}, ${t.description || ''}, ${t.montant || 0},
-                ${t.priorite || 'Moyenne'}, ${t.dureeEstimee || 0},
+                ${sanitize(t.categorie || t.type, VALID_CATEGORIES_TRAVAUX, 'Autre')}, ${t.description || ''}, ${t.montant || 0},
+                ${sanitize(t.priorite, VALID_PRIORITES, 'Moyenne')}, ${t.dureeEstimee || 0},
                 ${t.artisan || null}, ${t.devisObtenu || false}, ${t.dateDebutPrevue || null}
               )
             `;
@@ -411,7 +425,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const photo = photos[i];
             const url = typeof photo === 'string' ? photo : photo.url;
             const filename = typeof photo === 'string' ? `photo_${i}.jpg` : (photo.filename || `photo_${i}.jpg`);
-            const type = typeof photo === 'string' ? 'Autre' : (photo.type || 'Autre');
+            const type = sanitize(typeof photo === 'string' ? 'Autre' : (photo.type || 'Autre'), VALID_PHOTO_TYPES, 'Autre');
             const size = typeof photo === 'string' ? 0 : (photo.size || 0);
             const mimeType = typeof photo === 'string' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
             const photoDescription = typeof photo === 'string' ? null : (photo.description || null);
