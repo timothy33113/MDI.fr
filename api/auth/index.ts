@@ -25,12 +25,22 @@ function isValidPassword(password: string): { valid: boolean; errors: string[] }
   return { valid: errors.length === 0, errors };
 }
 
-function getBody(req: VercelRequest): any {
-  let body = req.body;
-  if (typeof body === 'string') {
-    body = JSON.parse(body);
+async function getBody(req: VercelRequest): Promise<any> {
+  // Try req.body first (Vercel default parser), fall back to stream reading
+  try {
+    const body = req.body;
+    if (body && typeof body === 'object') return body;
+    if (typeof body === 'string') return JSON.parse(body);
+  } catch {
+    // req.body getter can throw "Invalid JSON" in some Vercel runtime versions
   }
-  return body || {};
+  // Fallback: read from stream
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  return raw ? JSON.parse(raw) : {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -53,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // LOGIN
     if (action === 'login') {
-      const body = getBody(req);
+      const body = await getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {
@@ -99,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // REGISTER
     if (action === 'register') {
-      const body = getBody(req);
+      const body = await getBody(req);
       const { email, password } = body;
 
       if (!email || !password) {

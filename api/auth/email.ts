@@ -3,12 +3,6 @@ import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 const JWT_SECRET = process.env.JWT_SECRET || 'mdi-dev-secret';
 
 function getUserFromRequest(req: VercelRequest): { userId: string; email: string } | null {

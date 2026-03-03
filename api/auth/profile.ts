@@ -17,12 +17,18 @@ function getUserFromRequest(req: VercelRequest): { userId: string; email: string
   }
 }
 
-function getBody(req: VercelRequest): any {
-  let body = req.body;
-  if (typeof body === 'string') {
-    body = JSON.parse(body);
+async function getBody(req: VercelRequest): Promise<any> {
+  try {
+    const body = req.body;
+    if (body && typeof body === 'object') return body;
+    if (typeof body === 'string') return JSON.parse(body);
+  } catch {}
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
-  return body || {};
+  const raw = Buffer.concat(chunks).toString('utf8');
+  return raw ? JSON.parse(raw) : {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -70,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT - Mettre à jour le profil
     if (req.method === 'PUT' && action === 'update') {
-      const body = getBody(req);
+      const body = await getBody(req);
       const { nom, prenom, telephone } = body;
 
       const result = await sql`
