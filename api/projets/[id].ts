@@ -585,7 +585,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Projet error:', error);
-    return res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Projet error:', error?.message, error?.stack);
+    return res.status(500).json({ error: `Erreur serveur: ${error?.message || error}` });
   }
 }
