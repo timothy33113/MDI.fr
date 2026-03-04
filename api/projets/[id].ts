@@ -320,6 +320,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = validation.data;
 
       // 1. Mettre a jour le projet
+      console.log('[PUT] Step 1: UPDATE projets');
       await sql`
         UPDATE projets
         SET nom = COALESCE(${nom || null}, nom),
@@ -328,8 +329,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             date_modification = NOW()
         WHERE id = ${id} AND user_id = ${user.userId}
       `;
+      console.log('[PUT] Step 1 OK');
 
       // 2. Upsert bien immobilier
+      console.log('[PUT] Step 2: bien immobilier');
       if (bien) {
         const existingBien = await sql`
           SELECT id FROM biens_immobiliers_v2 WHERE projet_id = ${id}
@@ -381,6 +384,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           bienId = bienResult[0].id;
         }
 
+        console.log('[PUT] Step 2 OK, bienId:', bienId);
         // 3. Remplacer les elements du bien
         if (elementsBien && Array.isArray(elementsBien)) {
           await sql`DELETE FROM elements_bien_v2 WHERE projet_id = ${id}`;
@@ -400,6 +404,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        console.log('[PUT] Step 3 OK: elements');
         // 4. Remplacer les travaux
         if (travaux && Array.isArray(travaux)) {
           await sql`DELETE FROM travaux_details_v2 WHERE bien_immobilier_id = ${bienId}`;
@@ -418,6 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        console.log('[PUT] Step 4 OK: travaux');
         // 5. Remplacer les photos
         if (photos && Array.isArray(photos)) {
           await sql`DELETE FROM photos_v2 WHERE bien_immobilier_id = ${bienId}`;
@@ -441,6 +447,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      console.log('[PUT] Step 5 OK: photos');
       // 6. Upsert plan de financement
       if (financement) {
         const prixAchat = financement.prixAchat || 0;
@@ -509,6 +516,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      console.log('[PUT] Step 6 OK: financement');
       // 7. Remplacer les porteurs
       if (porteurs && Array.isArray(porteurs)) {
         await sql`DELETE FROM porteurs_projet WHERE projet_id = ${id}`;
@@ -522,6 +530,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      console.log('[PUT] Step 7 OK: porteurs');
       // Retourner le projet mis a jour
       const updated = await sql`SELECT * FROM projets WHERE id = ${id}`;
       return res.status(200).json({ success: true, data: { projet: updated[0] } });
