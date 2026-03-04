@@ -321,21 +321,26 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     })
   }
 
-  // Convertir HEIC en JPEG via heic2any
-  const convertHeicToJpeg = async (file: File): Promise<Blob> => {
-    const heic2anyModule = await import('heic2any')
-    const heic2any = heic2anyModule.default || heic2anyModule
-    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 })
-    return Array.isArray(result) ? result[0] : result
-  }
-
   // Photos
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
 
     Array.from(files).forEach(async file => {
-      if (!file.type.startsWith('image/') && !file.name.match(/\.(heic|heif)$/i)) {
+      // Detecter HEIC et guider l'utilisateur
+      if (file.name.match(/\.(heic|heif)$/i) || file.type === 'image/heic' || file.type === 'image/heif') {
+        alert(
+          `Le format HEIC n'est pas supporte par les navigateurs.\n\n` +
+          `Pour convertir sur Mac :\n` +
+          `• Ouvrir la photo dans Apercu\n` +
+          `• Fichier > Exporter > Format : JPEG\n\n` +
+          `Sur iPhone :\n` +
+          `• Reglages > Appareil photo > Formats > Le plus compatible`
+        )
+        return
+      }
+
+      if (!file.type.startsWith('image/')) {
         alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
       }
@@ -345,21 +350,11 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       }
 
       try {
-        // Strategie: essayer natif d'abord, puis heic2any en fallback
-        let compressed: string
-        try {
-          compressed = await compressImage(file)
-        } catch {
-          // Le navigateur ne supporte pas le format (HEIC sur Chrome)
-          // Fallback: conversion via heic2any
-          console.log('Conversion native echouee, essai heic2any pour', file.name)
-          const jpegBlob = await convertHeicToJpeg(file)
-          compressed = await compressImage(jpegBlob)
-        }
+        const compressed = await compressImage(file)
         setPhotos(prev => [...prev, compressed])
       } catch (err: any) {
         console.error('Erreur traitement photo:', err)
-        alert(`Impossible de traiter "${file.name}". Essayez de la convertir en JPG avant.`)
+        alert(`Impossible de traiter "${file.name}". Utilisez un format JPG ou PNG.`)
       }
     })
 
