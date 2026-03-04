@@ -179,14 +179,6 @@ class PDFGeneratorPro {
     this.doc.setTextColor(...this.colors.textLight)
 
     const bien = projet.bienImmobilier
-    const typeBien = bien?.type ? bien.type.replace(/_/g, ' ') : ''
-    const superficie = bien?.superficie ? ` - ${Math.round(Number(bien.superficie))} m2` : ''
-    const adresseLine = bien ? `${typeBien}${superficie}` : ''
-    if (adresseLine) {
-      this.doc.text(adresseLine, this.pageWidth / 2, y, { align: 'center' })
-      y += 8
-    }
-
     const villeLine = bien ? `${bien.adresse || ''}, ${bien.codePostal || ''} ${bien.ville || ''}` : ''
     if (villeLine.trim().length > 2) {
       this.doc.text(villeLine, this.pageWidth / 2, y, { align: 'center' })
@@ -224,32 +216,37 @@ class PDFGeneratorPro {
       }
     }
 
-    // Separateur
-    y += 10
-    this.drawLine(y, this.colors.bgMedium)
-    y += 10
+    // Metriques financieres en bas (position fixe)
+    const financialsY = this.pageHeight - 70
 
-    // Porteurs du projet
-    this.doc.setFontSize(11)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.setTextColor(...this.colors.primary)
-    this.doc.text('Porteurs du projet', this.margin + 10, y)
-    y += 10
+    // Separateur + Porteurs du projet (seulement si assez de place)
+    if (y + 30 < financialsY) {
+      y += 10
+      this.drawLine(y, this.colors.bgMedium)
+      y += 10
 
-    if (projet.porteurs && projet.porteurs.length > 0) {
-      this.doc.setFont('helvetica', 'normal')
-      this.doc.setTextColor(...this.colors.text)
-      projet.porteurs.forEach(porteur => {
-        const nom = (porteur as any).structure?.nom || 'Porteur'
-        const pct = Number(porteur.pourcentageProjet) || 0
-        const pctStr = pct === Math.floor(pct) ? `${pct} %` : `${pct.toFixed(1)} %`
-        this.doc.text(`${nom}  -  ${pctStr}`, this.margin + 15, y)
-        y += 7
-      })
+      this.doc.setFontSize(11)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      this.doc.text('Porteurs du projet', this.margin + 10, y)
+      y += 10
+
+      if (projet.porteurs && projet.porteurs.length > 0) {
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+        projet.porteurs.forEach(porteur => {
+          if (y + 7 >= financialsY) return
+          const nom = (porteur as any).structure?.nom || 'Porteur'
+          const pct = Number(porteur.pourcentageProjet) || 0
+          const pctStr = pct === Math.floor(pct) ? `${pct} %` : `${pct.toFixed(1)} %`
+          this.doc.text(`${nom}  -  ${pctStr}`, this.margin + 15, y)
+          y += 7
+        })
+      }
     }
 
-    // Metriques financieres en bas
-    y = this.pageHeight - 70
+    // Metriques financieres
+    y = financialsY
     this.drawLine(y, this.colors.bgMedium)
     y += 10
 
