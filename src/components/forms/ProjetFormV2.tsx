@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -48,8 +48,6 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       ? initialProjet.bienImmobilier.photos.map(p => p.url)
       : []
   )
-  // Map: displayUrl -> base64 data URL (pour les nouveaux uploads via createObjectURL)
-  const photosBase64Ref = useRef<Map<string, string>>(new Map())
 
   // Onglet 2: Porteurs du projet
   // Filtre les porteurs avec des IDs invalides (ancien localStorage)
@@ -293,45 +291,65 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     ))
   }
 
+  // Compresser une image via canvas (max 1200px, JPEG 0.7)
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        const MAX = 1200
+        let w = img.width
+        let h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        const compressed = canvas.toDataURL('image/jpeg', 0.7)
+        URL.revokeObjectURL(objectUrl)
+        resolve(compressed)
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error('Impossible de lire l\'image'))
+      }
+      img.src = objectUrl
+    })
+  }
+
   // Photos
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
 
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach(async file => {
       if (!file.type.startsWith('image/')) {
         alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
       }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`Le fichier "${file.name}" depasse 5 MB.`)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`Le fichier "${file.name}" depasse 10 MB.`)
         return
       }
 
-      // Affichage immediat avec createObjectURL (fiable, pas de base64)
-      const objectUrl = URL.createObjectURL(file)
-      setPhotos(prev => [...prev, objectUrl])
-
-      // Conversion base64 en arriere-plan pour la sauvegarde en BDD
-      const reader = new FileReader()
-      reader.onload = () => {
-        const base64 = reader.result as string
-        if (base64) {
-          photosBase64Ref.current.set(objectUrl, base64)
-        }
+      try {
+        // Compresser et convertir en base64 JPEG (petit pour la BDD)
+        const compressed = await compressImage(file)
+        // Utiliser le base64 compresse directement pour affichage ET sauvegarde
+        setPhotos(prev => [...prev, compressed])
+      } catch {
+        alert(`Impossible de traiter "${file.name}".`)
       }
-      reader.readAsDataURL(file)
     })
 
     e.target.value = ''
   }
 
   const removePhoto = (index: number) => {
-    const url = photos[index]
-    if (url?.startsWith('blob:')) {
-      URL.revokeObjectURL(url)
-      photosBase64Ref.current.delete(url)
-    }
     setPhotos(photos.filter((_, i) => i !== index))
   }
 
@@ -638,7 +656,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       },
       elementsBien: elementsBien.length > 0 ? elementsBien.map(({ id, ...rest }) => rest) : undefined,
       travaux: travaux.length > 0 ? travaux.map(({ id, ...rest }) => rest) : undefined,
-      photos: photos.length > 0 ? photos.map(p => photosBase64Ref.current.get(p) || p) : undefined,
+      photos: photos.length > 0 ? photos : undefined,
       financement
     }
 
