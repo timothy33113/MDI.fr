@@ -344,16 +344,22 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
         // Convertir HEIC/HEIF en JPEG (chargement dynamique de heic2any)
         if (isHeic) {
-          const heic2any = (await import('heic2any')).default
-          const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 }) as Blob
+          console.log('HEIC detecte:', file.name, 'type:', file.type, 'size:', file.size)
+          const heic2anyModule = await import('heic2any')
+          const heic2any = heic2anyModule.default || heic2anyModule
+          console.log('heic2any charge, conversion...')
+          const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 })
+          // heic2any peut retourner un Blob ou un Blob[]
+          const blob = Array.isArray(result) ? result[0] : result
+          console.log('Conversion OK, blob size:', blob.size)
           imageFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' })
         }
 
         const compressed = await compressImage(imageFile)
         setPhotos(prev => [...prev, compressed])
-      } catch (err) {
-        console.error('Erreur traitement photo:', err)
-        alert(`Impossible de traiter "${file.name}".`)
+      } catch (err: any) {
+        console.error('Erreur traitement photo:', err, err?.message, err?.stack)
+        alert(`Erreur photo "${file.name}": ${err?.message || err}`)
       }
     })
 
