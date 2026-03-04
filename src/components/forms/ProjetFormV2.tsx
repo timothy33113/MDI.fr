@@ -327,7 +327,10 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(async file => {
-      if (!file.type.startsWith('image/')) {
+      const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+        || file.type === 'image/heic' || file.type === 'image/heif'
+
+      if (!file.type.startsWith('image/') && !isHeic) {
         alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
       }
@@ -340,10 +343,10 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         let imageFile = file
 
         // Convertir HEIC/HEIF en JPEG (chargement dynamique de heic2any)
-        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+        if (isHeic) {
           const heic2any = (await import('heic2any')).default
           const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 }) as Blob
-          imageFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' })
+          imageFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' })
         }
 
         const compressed = await compressImage(imageFile)
