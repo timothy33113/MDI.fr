@@ -327,22 +327,29 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(async file => {
-      const supported = ['image/jpeg', 'image/png', 'image/webp']
-      if (!supported.includes(file.type)) {
-        alert(`Format non supporte pour "${file.name}". Utilisez JPG, PNG ou WebP.`)
+      if (!file.type.startsWith('image/')) {
+        alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
       }
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`Le fichier "${file.name}" depasse 10 MB.`)
+      if (file.size > 15 * 1024 * 1024) {
+        alert(`Le fichier "${file.name}" depasse 15 MB.`)
         return
       }
 
       try {
-        // Compresser et convertir en base64 JPEG (petit pour la BDD)
-        const compressed = await compressImage(file)
-        // Utiliser le base64 compresse directement pour affichage ET sauvegarde
+        let imageFile = file
+
+        // Convertir HEIC/HEIF en JPEG (chargement dynamique de heic2any)
+        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+          const heic2any = (await import('heic2any')).default
+          const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 }) as Blob
+          imageFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' })
+        }
+
+        const compressed = await compressImage(imageFile)
         setPhotos(prev => [...prev, compressed])
-      } catch {
+      } catch (err) {
+        console.error('Erreur traitement photo:', err)
         alert(`Impossible de traiter "${file.name}".`)
       }
     })
@@ -845,7 +852,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     </div>
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/*"
                       multiple
                       onChange={handlePhotoUpload}
                       className="hidden"
