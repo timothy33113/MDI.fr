@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -48,6 +48,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       ? initialProjet.bienImmobilier.photos.map(p => p.url)
       : []
   )
+  // Map: displayUrl -> base64 data URL (pour les nouveaux uploads via createObjectURL)
+  const photosBase64Ref = useRef<Map<string, string>>(new Map())
 
   // Onglet 2: Porteurs du projet
   // Filtre les porteurs avec des IDs invalides (ancien localStorage)
@@ -297,7 +299,6 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(file => {
-      // Valider le fichier
       if (!file.type.startsWith('image/')) {
         alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
@@ -307,26 +308,30 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         return
       }
 
+      // Affichage immediat avec createObjectURL (fiable, pas de base64)
+      const objectUrl = URL.createObjectURL(file)
+      setPhotos(prev => [...prev, objectUrl])
+
+      // Conversion base64 en arriere-plan pour la sauvegarde en BDD
       const reader = new FileReader()
       reader.onload = () => {
-        const result = reader.result as string
-        if (result && result.startsWith('data:image/')) {
-          setPhotos(prev => [...prev, result])
-        } else {
-          console.error('FileReader result invalide:', result?.substring(0, 50))
+        const base64 = reader.result as string
+        if (base64) {
+          photosBase64Ref.current.set(objectUrl, base64)
         }
-      }
-      reader.onerror = () => {
-        console.error('Erreur FileReader:', reader.error)
       }
       reader.readAsDataURL(file)
     })
 
-    // Reset input pour pouvoir re-ajouter le meme fichier
     e.target.value = ''
   }
 
   const removePhoto = (index: number) => {
+    const url = photos[index]
+    if (url?.startsWith('blob:')) {
+      URL.revokeObjectURL(url)
+      photosBase64Ref.current.delete(url)
+    }
     setPhotos(photos.filter((_, i) => i !== index))
   }
 
@@ -633,7 +638,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       },
       elementsBien: elementsBien.length > 0 ? elementsBien.map(({ id, ...rest }) => rest) : undefined,
       travaux: travaux.length > 0 ? travaux.map(({ id, ...rest }) => rest) : undefined,
-      photos: photos.length > 0 ? photos : undefined,
+      photos: photos.length > 0 ? photos.map(p => photosBase64Ref.current.get(p) || p) : undefined,
       financement
     }
 
@@ -834,20 +839,11 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {photos.map((photo, index) => (
                       <div key={index} className="relative group w-full h-32 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden">
-                        {photo && photo.length > 10 ? (
-                          <img
-                            src={photo}
-                            alt={`Photo ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                            Photo {index + 1}
-                          </div>
-                        )}
+                        <img
+                          src={photo}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
