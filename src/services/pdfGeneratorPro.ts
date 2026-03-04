@@ -528,57 +528,56 @@ class PDFGeneratorPro {
 
       this.currentY = Math.max(leftY, rightY) + 5
 
-      // === Patrimoine existant (inline sous le porteur) ===
+      // === Patrimoine existant - fiches detaillees par bien ===
       const data = pp || pm
       const patrimoine = data?.patrimoine
-      const biens = patrimoine?.biensImmobiliers || data?.biens
-      const credits = patrimoine?.creditsEnCours || data?.credits
-      const hasPatrimoine = (biens && Array.isArray(biens) && biens.length > 0) ||
-        (credits && Array.isArray(credits) && credits.length > 0) ||
-        (patrimoine?.epargneDisponible && Number(patrimoine.epargneDisponible) > 0)
+      const biens: any[] = patrimoine?.biensImmobiliers || data?.biens || []
+      const credits: any[] = patrimoine?.creditsEnCours || data?.credits || []
+      const epargne = patrimoine?.epargneDisponible ? Number(patrimoine.epargneDisponible) : 0
 
-      if (hasPatrimoine) {
+      if (biens.length > 0 || credits.length > 0 || epargne > 0) {
         this.checkPageBreak(20)
-
         this.doc.setFontSize(9)
         this.doc.setFont('helvetica', 'bold')
         this.doc.setTextColor(...this.colors.primaryLight)
         this.doc.text('PATRIMOINE EXISTANT', colLeft, this.currentY)
-        this.currentY += 6
+        this.currentY += 8
 
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.setTextColor(...this.colors.text)
-        this.doc.setFontSize(9)
-
-        if (biens && Array.isArray(biens) && biens.length > 0) {
-          biens.forEach((b: any) => {
-            this.checkPageBreak(6)
-            const adr = b.adresse || b.type || 'Bien'
-            const val = Number(b.valeurEstimee || b.valeur || 0)
-            let line = `  Bien : ${adr}`
-            if (val > 0) line += ` - Valeur : ${this.fmt(val)} EUR`
-            this.doc.text(line, colLeft, this.currentY)
-            this.currentY += 5
-          })
+        if (epargne > 0) {
+          this.doc.setFont('helvetica', 'normal')
+          this.doc.setTextColor(...this.colors.text)
+          this.doc.setFontSize(9)
+          this.doc.text(`Epargne disponible : ${this.fmt(epargne)} EUR`, colLeft, this.currentY)
+          this.currentY += 6
         }
 
-        if (credits && Array.isArray(credits) && credits.length > 0) {
-          credits.forEach((c: any) => {
+        // Fiche detaillee pour chaque bien
+        this.renderBiensDetailles(biens, credits, nom)
+
+        // Credits non associes a un bien
+        const biensIds = biens.map((b: any) => b.id)
+        const creditsOrphelins = credits.filter((c: any) => !c.bienAssocie || !biensIds.includes(c.bienAssocie))
+        if (creditsOrphelins.length > 0) {
+          this.checkPageBreak(20)
+          this.doc.setFontSize(9)
+          this.doc.setFont('helvetica', 'bold')
+          this.doc.setTextColor(...this.colors.primaryLight)
+          this.doc.text('AUTRES CREDITS', colLeft, this.currentY)
+          this.currentY += 6
+          creditsOrphelins.forEach((c: any) => {
             this.checkPageBreak(6)
+            this.doc.setFont('helvetica', 'normal')
+            this.doc.setTextColor(...this.colors.text)
+            this.doc.setFontSize(9)
             const org = c.organisme || c.banque || 'Credit'
             const mens = Number(c.mensualite || c.montantMensuel || 0)
             const capital = Number(c.capitalRestantDu || c.capitalRestant || 0)
-            let line = `  Credit : ${org}`
+            let line = `${org} - ${(c.type || '').replace(/_/g, ' ')}`
             if (mens > 0) line += ` - ${this.fmt(mens)} EUR/mois`
-            if (capital > 0) line += ` - Restant : ${this.fmt(capital)} EUR`
-            this.doc.text(line, colLeft, this.currentY)
+            if (capital > 0) line += ` - Restant du : ${this.fmt(capital)} EUR`
+            this.doc.text(line, colLeft + 3, this.currentY)
             this.currentY += 5
           })
-        }
-
-        if (patrimoine?.epargneDisponible && Number(patrimoine.epargneDisponible) > 0) {
-          this.doc.text(`  Epargne disponible : ${this.fmt(patrimoine.epargneDisponible)} EUR`, colLeft, this.currentY)
-          this.currentY += 5
         }
       }
 
@@ -703,6 +702,15 @@ class PDFGeneratorPro {
             }
 
             this.currentY = Math.max(aLeftY, aRightY) + 3
+
+            // Patrimoine de l'associe
+            const aPatrimoine = aPP.patrimoine
+            const aBiens: any[] = aPatrimoine?.biensImmobiliers || []
+            const aCredits: any[] = aPatrimoine?.creditsEnCours || []
+            if (aBiens.length > 0 || aCredits.length > 0) {
+              this.currentY += 2
+              this.renderBiensDetailles(aBiens, aCredits, associeNom)
+            }
           }
 
           // Separateur entre associes
@@ -723,6 +731,211 @@ class PDFGeneratorPro {
         this.currentY += 5
       }
     })
+  }
+
+  // ==========================================
+  // FICHES BIENS PATRIMOINE
+  // ==========================================
+
+  private renderBiensDetailles(biens: any[], allCredits: any[], proprietaire: string): void {
+    biens.forEach((bien: any, bIdx: number) => {
+      this.checkPageBreak(55)
+
+      const adresse = bien.adresse || 'Adresse non renseignee'
+      const typeBien = (bien.type || 'Bien').replace(/_/g, ' ')
+      const statut = (bien.statut || '').replace(/_/g, ' ')
+      const loyerMensuel = Number(bien.loyerMensuel || bien.loyer || 0)
+      const valeur = Number(bien.valeurEstimee || bien.valeur || 0)
+
+      // Trouver le(s) credit(s) associe(s) a ce bien
+      const creditsAssocies = allCredits.filter((c: any) => c.bienAssocie === bien.id)
+
+      // Card container
+      const cardX = this.margin
+      const cardW = this.contentWidth
+
+      // En-tete du bien
+      this.doc.setFillColor(...this.colors.bgLight)
+      this.doc.roundedRect(cardX, this.currentY - 4, cardW, 12, 2, 2, 'F')
+      this.doc.setFillColor(...this.colors.primaryLight)
+      this.doc.rect(cardX, this.currentY - 4, 3, 12, 'F')
+
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      this.doc.text(`Bien ${bIdx + 1} : ${adresse}`, cardX + 8, this.currentY + 3)
+
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.textLight)
+      this.doc.text(`Detenu par ${proprietaire}`, this.pageWidth - this.margin - 5, this.currentY + 3, { align: 'right' })
+
+      this.currentY += 14
+
+      // Tableau d'informations du bien
+      const col1X = cardX + 8
+      const col2X = this.pageWidth / 2 + 5
+
+      // Colonne gauche: Description
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primaryLight)
+      this.doc.text('DESCRIPTION', col1X, this.currentY)
+      this.currentY += 5
+
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      this.doc.setFontSize(9)
+
+      let descY = this.currentY
+
+      this.doc.text(`Type : ${typeBien}`, col1X, descY)
+      descY += 5
+      this.doc.text(`Adresse : ${adresse}`, col1X, descY)
+      descY += 5
+      if (statut) {
+        this.doc.text(`Statut : ${statut}`, col1X, descY)
+        descY += 5
+      }
+
+      // Colonne droite: Chiffres
+      let chifY = this.currentY
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primaryLight)
+      this.doc.text('VALORISATION', col2X, chifY - 5)
+
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      this.doc.setFontSize(9)
+
+      if (valeur > 0) {
+        this.doc.text(`Valeur estimee : ${this.fmt(valeur)} EUR`, col2X, chifY)
+        chifY += 5
+      } else {
+        this.doc.setTextColor(...this.colors.textLight)
+        this.doc.text('Valeur estimee : non renseignee', col2X, chifY)
+        this.doc.setTextColor(...this.colors.text)
+        chifY += 5
+      }
+
+      if (loyerMensuel > 0) {
+        this.doc.text(`Loyer mensuel : ${this.fmt(loyerMensuel)} EUR`, col2X, chifY)
+        chifY += 5
+        this.doc.text(`Loyer annuel : ${this.fmt(loyerMensuel * 12)} EUR`, col2X, chifY)
+        chifY += 5
+        if (valeur > 0) {
+          const renta = ((loyerMensuel * 12) / valeur * 100).toFixed(1)
+          this.doc.text(`Rentabilite brute : ${renta} %`, col2X, chifY)
+          chifY += 5
+        }
+      }
+
+      this.currentY = Math.max(descY, chifY) + 3
+
+      // Credit(s) associe(s)
+      if (creditsAssocies.length > 0) {
+        this.checkPageBreak(20)
+
+        this.doc.setFontSize(8)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.primaryLight)
+        this.doc.text('CREDIT ASSOCIE', col1X, this.currentY)
+        this.currentY += 5
+
+        creditsAssocies.forEach((credit: any) => {
+          this.checkPageBreak(25)
+
+          // Fond subtil pour le credit
+          this.doc.setFillColor(252, 252, 255)
+          this.doc.roundedRect(cardX + 5, this.currentY - 3, cardW - 10, this.getCreditCardHeight(credit), 1.5, 1.5, 'F')
+
+          this.doc.setFont('helvetica', 'normal')
+          this.doc.setTextColor(...this.colors.text)
+          this.doc.setFontSize(9)
+
+          const org = credit.organisme || credit.banque || 'Organisme non renseigne'
+          const typeCredit = (credit.type || '').replace(/_/g, ' ')
+          this.doc.text(`${org}${typeCredit ? ' - ' + typeCredit : ''}`, col1X, this.currentY)
+          this.currentY += 5
+
+          const montantInitial = Number(credit.montantInitial || 0)
+          const capitalRestant = Number(credit.capitalRestantDu || credit.capitalRestant || 0)
+          const mensualite = Number(credit.mensualite || credit.montantMensuel || 0)
+          const taux = Number(credit.tauxInteret || 0)
+          const duree = Number(credit.nombreMois || credit.duree || 0)
+
+          let cLeftY = this.currentY
+          let cRightY = this.currentY
+
+          if (montantInitial > 0) {
+            this.doc.text(`Montant initial : ${this.fmt(montantInitial)} EUR`, col1X, cLeftY)
+            cLeftY += 5
+          }
+          if (capitalRestant > 0) {
+            this.doc.text(`Capital restant du : ${this.fmt(capitalRestant)} EUR`, col1X, cLeftY)
+            cLeftY += 5
+          }
+
+          if (mensualite > 0) {
+            this.doc.text(`Mensualite : ${this.fmt(mensualite)} EUR`, col2X, cRightY)
+            cRightY += 5
+          }
+          if (taux > 0) {
+            this.doc.text(`Taux : ${taux.toFixed(2)} %`, col2X, cRightY)
+            cRightY += 5
+          }
+          if (duree > 0) {
+            const annees = Math.floor(duree / 12)
+            const mois = duree % 12
+            const dureeStr = annees > 0 ? `${annees} ans${mois > 0 ? ` ${mois} mois` : ''}` : `${mois} mois`
+            this.doc.text(`Duree : ${dureeStr}`, col2X, cRightY)
+            cRightY += 5
+          }
+          if (credit.dateDebut) {
+            const d = new Date(credit.dateDebut)
+            if (!isNaN(d.getTime())) {
+              this.doc.text(`Debut : ${d.toLocaleDateString('fr-FR')}`, col2X, cRightY)
+              cRightY += 5
+            }
+          }
+
+          this.currentY = Math.max(cLeftY, cRightY) + 3
+        })
+      }
+
+      // Cash-flow net du bien (si loye et credit)
+      if (loyerMensuel > 0 && creditsAssocies.length > 0) {
+        const totalMens = creditsAssocies.reduce((s: number, c: any) => s + Number(c.mensualite || c.montantMensuel || 0), 0)
+        const cashflow = loyerMensuel - totalMens
+        this.checkPageBreak(10)
+
+        this.doc.setFillColor(...this.colors.bgLight)
+        this.doc.roundedRect(cardX + 5, this.currentY - 3, cardW - 10, 10, 1.5, 1.5, 'F')
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(cashflow >= 0 ? 46 : 220, cashflow >= 0 ? 125 : 53, cashflow >= 0 ? 50 : 69)
+        this.doc.text(`Cash-flow mensuel net : ${cashflow >= 0 ? '+' : ''}${this.fmt(cashflow)} EUR`, col1X, this.currentY + 3)
+        this.currentY += 12
+      }
+
+      this.currentY += 5
+
+      // Separateur entre biens
+      if (bIdx < biens.length - 1) {
+        this.doc.setDrawColor(220, 220, 220)
+        this.doc.setLineWidth(0.3)
+        this.doc.line(cardX + 10, this.currentY, this.pageWidth - this.margin - 10, this.currentY)
+        this.currentY += 8
+      }
+    })
+  }
+
+  private getCreditCardHeight(credit: any): number {
+    let h = 8
+    if (Number(credit.montantInitial || 0) > 0) h += 5
+    if (Number(credit.capitalRestantDu || credit.capitalRestant || 0) > 0) h += 5
+    return Math.max(h, 15)
   }
 
   // ==========================================
