@@ -24,7 +24,7 @@ interface ProjectDataResponse {
  */
 class PDFService {
   private getAuthToken(): string | null {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('token')
     return token
   }
 
