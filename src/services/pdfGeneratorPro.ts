@@ -185,6 +185,10 @@ class PDFGeneratorPro {
       y += 8
     }
 
+    // Reserve espace pour: separateur(20) + porteurs(~35) + financials(70 from bottom)
+    const financialsY = this.pageHeight - 70
+    const porteursNeeded = 20 + 10 + (projet.porteurs ? projet.porteurs.length * 7 + 10 : 0)
+
     // Photo de couverture
     if (projet.photoCouverture) {
       y += 8
@@ -195,31 +199,30 @@ class PDFGeneratorPro {
         if (base64) {
           const dims = await this.getImageDimensions(base64)
           const maxW = this.contentWidth * 0.6
-          const maxH = 55
-          const ratio = dims.width / dims.height
-          let drawW = maxW
-          let drawH = maxW / ratio
-          if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio }
-          const x = (this.pageWidth - drawW) / 2
-          const format = base64.includes('image/png') ? 'PNG' : 'JPEG'
-          // Bordure arrondie
-          this.doc.setFillColor(...this.colors.bgLight)
-          this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2, 'F')
-          this.doc.addImage(base64, format, x, y, drawW, drawH)
-          this.doc.setDrawColor(...this.colors.bgMedium)
-          this.doc.setLineWidth(0.3)
-          this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2)
-          y += drawH + 5
+          // Hauteur max dynamique: espace restant moins porteurs et financials
+          const maxH = Math.min(50, financialsY - y - porteursNeeded - 8)
+          if (maxH > 15) {
+            const ratio = dims.width / dims.height
+            let drawW = maxW
+            let drawH = maxW / ratio
+            if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio }
+            const x = (this.pageWidth - drawW) / 2
+            const format = base64.includes('image/png') ? 'PNG' : 'JPEG'
+            this.doc.setFillColor(...this.colors.bgLight)
+            this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2, 'F')
+            this.doc.addImage(base64, format, x, y, drawW, drawH)
+            this.doc.setDrawColor(...this.colors.bgMedium)
+            this.doc.setLineWidth(0.3)
+            this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2)
+            y += drawH + 5
+          }
         }
       } catch (e) {
         console.error('Cover photo error:', e)
       }
     }
 
-    // Metriques financieres en bas (position fixe)
-    const financialsY = this.pageHeight - 70
-
-    // Separateur + Porteurs du projet (seulement si assez de place)
+    // Separateur + Porteurs du projet
     if (y + 30 < financialsY) {
       y += 10
       this.drawLine(y, this.colors.bgMedium)
