@@ -51,17 +51,8 @@ class PDFGeneratorPro {
     this.doc.setFillColor(...this.colors.white)
     this.doc.roundedRect(30, boxY, this.pageWidth - 60, boxHeight, 3, 3, 'F')
 
-    // TODO: Ajouter la photo du bien ici (si disponible)
-    // Pour l'instant, on met un placeholder
-    if (projet.bienImmobilier?.photos && projet.bienImmobilier.photos.length > 0) {
-      try {
-        // La première photo
-        const photoData = projet.bienImmobilier.photos[0]
-        this.doc.addImage(photoData, 'JPEG', 40, boxY + 10, this.pageWidth - 80, 80)
-      } catch (error) {
-        console.error('Erreur chargement photo:', error)
-      }
-    }
+    // Photo du bien (seulement si c'est une data URL base64, pas un lien HTTP)
+    // Les URLs HTTP ne peuvent pas être chargées par jsPDF de manière synchrone
 
     // Cercle avec logo SCI (à gauche)
     const circleX = 50
@@ -327,19 +318,7 @@ class PDFGeneratorPro {
 
     // TODO: Ajouter la carte Google Maps ici
 
-    // Photo du bien
-    if (projet.bienImmobilier?.photos && projet.bienImmobilier.photos.length > 0) {
-      try {
-        const photoData = projet.bienImmobilier.photos[0]
-        const photoWidth = 120
-        const photoHeight = 80
-        const photoX = (this.pageWidth - photoWidth) / 2
-        this.doc.addImage(photoData, 'JPEG', photoX, this.currentY, photoWidth, photoHeight)
-        this.currentY += photoHeight + 10
-      } catch (error) {
-        console.error('Erreur chargement photo:', error)
-      }
-    }
+    // Photos: seulement base64/data URLs, pas HTTP URLs (jsPDF ne peut pas les charger)
 
     // Légende
     this.currentY += 10
@@ -389,33 +368,8 @@ class PDFGeneratorPro {
       })
     }
 
-    // Photos du bien
+    // Photos: skip car ce sont des URLs HTTP (jsPDF supporte seulement base64/data URLs)
     this.currentY += 10
-    if (projet.bienImmobilier?.photos && projet.bienImmobilier.photos.length > 1) {
-      const photosPerRow = 3
-      const photoWidth = 50
-      const photoHeight = 40
-      const spacing = 5
-
-      let photoX = this.margin
-      let photoY = this.currentY
-
-      projet.bienImmobilier.photos.slice(1, 7).forEach((photo, index) => {
-        if (index > 0 && index % photosPerRow === 0) {
-          photoX = this.margin
-          photoY += photoHeight + spacing
-        }
-
-        try {
-          this.doc.addImage(photo, 'JPEG', photoX, photoY, photoWidth, photoHeight)
-          photoX += photoWidth + spacing
-        } catch (error) {
-          console.error('Erreur chargement photo:', error)
-        }
-      })
-
-      this.currentY = photoY + photoHeight + 10
-    }
 
     // Objectifs
     this.currentY += 10
@@ -945,38 +899,21 @@ class PDFGeneratorPro {
    * Génère le PDF complet
    */
   public generatePDF(projet: Projet): jsPDF {
-    // 1. Page de garde
-    this.generateCoverPage(projet)
+    const safe = (label: string, fn: () => void) => {
+      try { fn() } catch (e) { console.error(`PDF section "${label}" error:`, e) }
+    }
 
-    // 2. Sommaire
-    this.generateSommaire(projet)
-
-    // 3. Profils des porteurs
-    this.generatePorteursProfils(projet)
-
-    // 4. Localisation
-    this.generateLocalisation(projet)
-
-    // 5. Description du bien
-    this.generateBienDescription(projet)
-
-    // 6. Financement
-    this.generateFinancement(projet)
-
-    // 7. Patrimoine existant
-    this.generatePatrimoine(projet)
-
-    // 8. Analyse de rentabilite
-    this.generateRentabilite(projet)
-
-    // 9. Checklist documents
-    this.generateChecklist(projet)
-
-    // 10. Annexes
-    this.generateAnnexes()
-
-    // 11. Pieds de page
-    this.addFooters()
+    safe('Page de garde', () => this.generateCoverPage(projet))
+    safe('Sommaire', () => this.generateSommaire(projet))
+    safe('Porteurs', () => this.generatePorteursProfils(projet))
+    safe('Localisation', () => this.generateLocalisation(projet))
+    safe('Description bien', () => this.generateBienDescription(projet))
+    safe('Financement', () => this.generateFinancement(projet))
+    safe('Patrimoine', () => this.generatePatrimoine(projet))
+    safe('Rentabilite', () => this.generateRentabilite(projet))
+    safe('Checklist', () => this.generateChecklist(projet))
+    safe('Annexes', () => this.generateAnnexes())
+    safe('Footers', () => this.addFooters())
 
     return this.doc
   }
