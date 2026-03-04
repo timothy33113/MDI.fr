@@ -327,8 +327,9 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(async file => {
-      if (!file.type.startsWith('image/')) {
-        alert(`Le fichier "${file.name}" n'est pas une image.`)
+      const supported = ['image/jpeg', 'image/png', 'image/webp']
+      if (!supported.includes(file.type)) {
+        alert(`Format non supporte pour "${file.name}". Utilisez JPG, PNG ou WebP.`)
         return
       }
       if (file.size > 10 * 1024 * 1024) {
@@ -844,7 +845,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     </div>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       multiple
                       onChange={handlePhotoUpload}
                       className="hidden"
