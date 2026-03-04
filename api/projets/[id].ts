@@ -85,6 +85,18 @@ const updateProjetSchema = z.object({
     dateDebutPrevue: z.string().optional().nullable(),
   })).optional(),
   photos: z.array(z.union([z.string(), z.object({ url: z.string() }).passthrough()])).optional(),
+  photoCouverture: z.string().optional().nullable(),
+  comparables: z.array(z.object({
+    url: z.string(),
+    titre: z.string().max(500).optional(),
+    prix: z.number().min(0).optional(),
+    surface: z.number().min(0).optional(),
+    pieces: z.number().min(0).optional(),
+    loyer: z.number().min(0).optional().nullable(),
+    ville: z.string().max(255).optional(),
+    codePostal: z.string().max(10).optional(),
+    images: z.array(z.string()).optional(),
+  })).optional(),
 });
 
 function getUserFromRequest(req: VercelRequest) {
@@ -200,6 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         nom: p.nom,
         description: p.description,
         status: p.status,
+        photoCouverture: p.photo_couverture,
         dateCreation: p.date_creation,
         dateModification: p.date_modification,
         bienImmobilier: p.bien_id ? {
@@ -319,7 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'Projet non trouve' });
       }
 
-      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = validation.data;
+      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos, photoCouverture, comparables } = validation.data;
 
       let lastStep = '';
       // 1. Mettre a jour le projet
@@ -329,6 +342,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         SET nom = COALESCE(${nom || null}, nom),
             description = COALESCE(${description !== undefined ? description : null}, description),
             status = COALESCE(${status || null}, status),
+            photo_couverture = ${photoCouverture !== undefined ? photoCouverture || null : null},
             date_modification = NOW()
         WHERE id = ${id} AND user_id = ${user.userId}
       `;
@@ -534,6 +548,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       lastStep = 'Step7 OK:porteurs';
+
+      // 8. Comparables de marche
+      if (comparables !== undefined) {
+        lastStep = 'Step8:comparables';
+        await sql`DELETE FROM comparables_marche WHERE projet_id = ${id}`;
+        if (comparables && Array.isArray(comparables) && comparables.length > 0) {
+          for (const comp of comparables) {
+            await sql`
+              INSERT INTO comparables_marche (
+                projet_id, url, titre, prix, surface, pieces, loyer, ville, code_postal, images
+              ) VALUES (
+                ${id}, ${comp.url}, ${comp.titre || null}, ${comp.prix || null},
+                ${comp.surface || null}, ${comp.pieces || null}, ${comp.loyer || null},
+                ${comp.ville || null}, ${comp.codePostal || null}, ${JSON.stringify(comp.images || [])}
+              )
+            `;
+          }
+        }
+        lastStep = 'Step8 OK:comparables';
+      }
+
       // Retourner le projet mis a jour
       const updated = await sql`SELECT * FROM projets WHERE id = ${id}`;
       return res.status(200).json({ success: true, data: { projet: updated[0] } });

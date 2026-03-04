@@ -138,7 +138,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ORDER BY categorie, nom_document
     `;
 
-    // 10. Formater les donnees pour le frontend/PDF
+    // 10. Recuperer les comparables de marche
+    const comparables = await sql`
+      SELECT * FROM comparables_marche
+      WHERE projet_id = ${id}
+      ORDER BY created_at
+    `;
+
+    // 11. Formater les donnees pour le frontend/PDF
     const formattedData = {
       projet: {
         id: projet.id,
@@ -146,6 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         nom: projet.nom,
         description: projet.description,
         status: projet.status,
+        photoCouverture: projet.photo_couverture,
         dateCreation: projet.date_creation,
         dateModification: projet.date_modification
       },
@@ -259,6 +267,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         validiteJours: d.validite_jours,
         statut: d.statut,
         dateFourniture: d.date_fourniture
+      })),
+      comparables: comparables.map(c => ({
+        id: c.id,
+        url: c.url,
+        titre: c.titre,
+        prix: c.prix,
+        surface: c.surface,
+        pieces: c.pieces,
+        loyer: c.loyer,
+        ville: c.ville,
+        codePostal: c.code_postal,
+        images: c.images || [],
+        createdAt: c.created_at
       })),
       // Format legacy pour compatibilite avec pdfGenerator.ts (DossierSCI)
       legacy: {

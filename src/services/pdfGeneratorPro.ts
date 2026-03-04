@@ -142,7 +142,7 @@ class PDFGeneratorPro {
   // PAGE DE GARDE
   // ==========================================
 
-  private generateCoverPage(projet: Projet): void {
+  private async generateCoverPage(projet: Projet): Promise<void> {
     // Bande bleue en haut
     this.doc.setFillColor(...this.colors.primary)
     this.doc.rect(0, 0, this.pageWidth, 80, 'F')
@@ -193,10 +193,41 @@ class PDFGeneratorPro {
       y += 8
     }
 
+    // Photo de couverture
+    if (projet.photoCouverture) {
+      y += 8
+      try {
+        const base64 = projet.photoCouverture.startsWith('data:')
+          ? projet.photoCouverture
+          : await this.loadImageAsBase64(projet.photoCouverture)
+        if (base64) {
+          const dims = await this.getImageDimensions(base64)
+          const maxW = this.contentWidth * 0.6
+          const maxH = 55
+          const ratio = dims.width / dims.height
+          let drawW = maxW
+          let drawH = maxW / ratio
+          if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio }
+          const x = (this.pageWidth - drawW) / 2
+          const format = base64.includes('image/png') ? 'PNG' : 'JPEG'
+          // Bordure arrondie
+          this.doc.setFillColor(...this.colors.bgLight)
+          this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2, 'F')
+          this.doc.addImage(base64, format, x, y, drawW, drawH)
+          this.doc.setDrawColor(...this.colors.bgMedium)
+          this.doc.setLineWidth(0.3)
+          this.doc.roundedRect(x - 1, y - 1, drawW + 2, drawH + 2, 2, 2)
+          y += drawH + 5
+        }
+      } catch (e) {
+        console.error('Cover photo error:', e)
+      }
+    }
+
     // Separateur
-    y += 15
+    y += 10
     this.drawLine(y, this.colors.bgMedium)
-    y += 15
+    y += 10
 
     // Porteurs du projet
     this.doc.setFontSize(11)
@@ -308,7 +339,7 @@ class PDFGeneratorPro {
 
     this.addPage()
     this.sectionPages['I. Situation personnelle'] = this.getPageNumber()
-    this.sectionPages['   Porteurs du projet'] = this.getPageNumber()
+    this.sectionPages['   1- Porteurs du projet'] = this.getPageNumber()
 
     this.drawSectionTitle('I. Situation personnelle')
     this.drawSubTitle('Porteurs du projet')
@@ -568,7 +599,7 @@ class PDFGeneratorPro {
   private generateLocalisation(projet: Projet): void {
     this.addPage()
     this.sectionPages['II. Le projet'] = this.getPageNumber()
-    this.sectionPages['   Situation geographique'] = this.getPageNumber()
+    this.sectionPages['   1- Situation geographique'] = this.getPageNumber()
 
     this.drawSectionTitle('II. Le projet')
     this.drawSubTitle('1. Situation geographique')
@@ -606,6 +637,24 @@ class PDFGeneratorPro {
 
     this.currentY += 38
 
+    // Phrase de presentation
+    const typePresentation = (bien.type || '').replace(/_/g, ' ').toLowerCase()
+    const etatPresentation = (bien.etatActuel || '').replace(/_/g, ' ').toLowerCase()
+    const supPresentation = bien.superficie ? `${Math.round(Number(bien.superficie))} m2` : ''
+    let presentationText = `Le bien est situe au ${bien.adresse || ''}, dans la commune de ${bien.ville || ''} (${bien.codePostal || ''}).`
+    if (typePresentation && supPresentation) {
+      presentationText += ` Il s'agit d'un ${typePresentation} de ${supPresentation}`
+      if (etatPresentation) presentationText += ` en etat ${etatPresentation}`
+      presentationText += '.'
+    }
+
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setTextColor(...this.colors.text)
+    const presLines = this.doc.splitTextToSize(presentationText, this.contentWidth)
+    this.doc.text(presLines, this.margin, this.currentY)
+    this.currentY += presLines.length * 5 + 5
+
     // Caracteristiques
     this.drawSubTitle('Caracteristiques')
 
@@ -629,18 +678,33 @@ class PDFGeneratorPro {
     const elements = (bien as any).elements || (bien as any).elementsBien
     if (elements && Array.isArray(elements) && elements.length > 0) {
       this.currentY += 8
-      this.drawSubTitle('Composition du bien')
+      this.sectionPages['   2- Composition du bien'] = this.getPageNumber()
+      this.drawSubTitle('2. Composition du bien')
+
+      // Colonnes du tableau composition
+      const colX = {
+        type: this.margin + 3,
+        superficie: this.margin + 50,
+        loyerActuel: this.margin + 80,
+        loyerEstime: this.margin + 110,
+        etat: this.margin + 143,
+      }
 
       this.doc.setFillColor(...this.colors.primary)
       this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 8, 'F')
-      this.doc.setFontSize(9)
+      this.doc.setFontSize(8)
       this.doc.setFont('helvetica', 'bold')
       this.doc.setTextColor(...this.colors.white)
-      this.doc.text('Type', this.margin + 5, this.currentY)
-      this.doc.text('Superficie', this.margin + 60, this.currentY)
-      this.doc.text('Loyer estime', this.margin + 100, this.currentY)
-      this.doc.text('Description', this.margin + 135, this.currentY)
+      this.doc.text('Type', colX.type, this.currentY)
+      this.doc.text('Superficie', colX.superficie, this.currentY)
+      this.doc.text('Loyer actuel', colX.loyerActuel, this.currentY)
+      this.doc.text('Loyer estime', colX.loyerEstime, this.currentY)
+      this.doc.text('Etat', colX.etat, this.currentY)
       this.currentY += 8
+
+      let totalSuperficie = 0
+      let totalLoyerActuel = 0
+      let totalLoyerEstime = 0
 
       elements.forEach((elem: any, i: number) => {
         this.checkPageBreak(10)
@@ -648,16 +712,50 @@ class PDFGeneratorPro {
           this.doc.setFillColor(...this.colors.bgLight)
           this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 8, 'F')
         }
-        this.doc.setFontSize(9)
+        this.doc.setFontSize(8)
         this.doc.setFont('helvetica', 'normal')
         this.doc.setTextColor(...this.colors.text)
-        this.doc.text((elem.type || '').replace(/_/g, ' '), this.margin + 5, this.currentY)
-        this.doc.text(elem.superficie ? `${Math.round(Number(elem.superficie))} m2` : '-', this.margin + 60, this.currentY)
-        this.doc.text(elem.loyerMensuel ? `${this.fmt(elem.loyerMensuel)} EUR` : '-', this.margin + 100, this.currentY)
-        const desc = elem.description || ''
-        this.doc.text(desc.substring(0, 25), this.margin + 135, this.currentY)
+
+        // Type: "Appartement - T3"
+        const type = (elem.type || '').replace(/_/g, ' ')
+        const pieces = Number(elem.nombrePieces) || 0
+        const typeLabel = pieces > 0 ? `${type} - T${pieces}` : type
+        this.doc.text(typeLabel, colX.type, this.currentY)
+
+        // Superficie
+        const superficie = Number(elem.superficie) || 0
+        totalSuperficie += superficie
+        this.doc.text(superficie > 0 ? `${Math.round(superficie)} m2` : '-', colX.superficie, this.currentY)
+
+        // Loyer actuel (seulement si en location)
+        const isRented = elem.enLocation === true
+        const loyerActuel = isRented ? (Number(elem.loyerMensuel) || 0) : 0
+        totalLoyerActuel += loyerActuel
+        this.doc.text(isRented && loyerActuel > 0 ? `${this.fmt(loyerActuel)} EUR` : '-', colX.loyerActuel, this.currentY)
+
+        // Loyer estime = loyer actuel si loue, sinon loyer mensuel (projete)
+        const loyerEstime = isRented ? loyerActuel : (Number(elem.loyerMensuel) || 0)
+        totalLoyerEstime += loyerEstime
+        this.doc.text(loyerEstime > 0 ? `${this.fmt(loyerEstime)} EUR` : '-', colX.loyerEstime, this.currentY)
+
+        // Etat
+        const etat = (elem.etat || '').replace(/_/g, ' ')
+        this.doc.text(etat, colX.etat, this.currentY)
+
         this.currentY += 8
       })
+
+      // Ligne totaux
+      this.doc.setFillColor(...this.colors.primary)
+      this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 9, 'F')
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.white)
+      this.doc.text('TOTAL', colX.type, this.currentY + 1)
+      this.doc.text(`${Math.round(totalSuperficie)} m2`, colX.superficie, this.currentY + 1)
+      this.doc.text(totalLoyerActuel > 0 ? `${this.fmt(totalLoyerActuel)} EUR` : '-', colX.loyerActuel, this.currentY + 1)
+      this.doc.text(totalLoyerEstime > 0 ? `${this.fmt(totalLoyerEstime)} EUR` : '-', colX.loyerEstime, this.currentY + 1)
+      this.currentY += 12
     }
   }
 
@@ -675,9 +773,9 @@ class PDFGeneratorPro {
     if (!hasTravaux && !hasRentabiliteInfo) return
 
     this.addPage()
-    this.sectionPages['   Le bien et son projet'] = this.getPageNumber()
+    this.sectionPages['   3- Le bien et son projet'] = this.getPageNumber()
 
-    this.drawSubTitle('2. Le bien et son projet')
+    this.drawSubTitle('3. Le bien et son projet')
 
     // Revenus locatifs estimes
     if (hasRentabiliteInfo) {
@@ -702,6 +800,17 @@ class PDFGeneratorPro {
 
     // Travaux prevus
     if (hasTravaux) {
+      const categories = [...new Set(bien.travauxPrevus.map(t => (t.categorie || '').replace(/_/g, ' ').toLowerCase()))]
+      const totalMontantTravaux = bien.travauxPrevus.reduce((sum, t) => sum + (Number(t.montant) || 0), 0)
+      const travauxDesc = `Le projet prevoit des travaux de renovation portant principalement sur ${categories.join(', ')} pour un budget total de ${this.fmt(totalMontantTravaux)} EUR.`
+
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      const travauxLines = this.doc.splitTextToSize(travauxDesc, this.contentWidth)
+      this.doc.text(travauxLines, this.margin, this.currentY)
+      this.currentY += travauxLines.length * 5 + 5
+
       this.drawSubTitle('Travaux prevus')
 
       this.doc.setFillColor(...this.colors.primary)
@@ -757,9 +866,9 @@ class PDFGeneratorPro {
     if (!fin) return
 
     this.addPage()
-    this.sectionPages['   Plan de financement'] = this.getPageNumber()
+    this.sectionPages['   4- Plan de financement'] = this.getPageNumber()
 
-    this.drawSubTitle('3. Plan de financement')
+    this.drawSubTitle('4. Plan de financement')
 
     // Cout du projet
     this.doc.setFontSize(10)
@@ -809,9 +918,6 @@ class PDFGeneratorPro {
       ['Duree du credit', `${Number(fin.dureeCredit) || 0} ans`],
       ['Taux d\'interet estime', this.fmtPct(fin.tauxInteretEstime)],
     ]
-    if (Number(fin.tauxAssuranceEstime) > 0) {
-      finItems.push(['Taux d\'assurance', this.fmtPct(fin.tauxAssuranceEstime)])
-    }
     if (fin.typePret) {
       finItems.push(['Type de pret', fin.typePret.replace(/_/g, ' ')])
     }
@@ -877,114 +983,6 @@ class PDFGeneratorPro {
     }
   }
 
-  // ==========================================
-  // CHECKLIST DOCUMENTS
-  // ==========================================
-
-  private generateChecklist(projet: Projet): void {
-    if (!projet.checklistDocuments || projet.checklistDocuments.length === 0) return
-
-    this.addPage()
-    this.sectionPages['III. Documents requis'] = this.getPageNumber()
-
-    this.drawSectionTitle('III. Documents requis')
-
-    const total = projet.checklistDocuments.length
-    const fournis = projet.checklistDocuments.filter(d => d.statut === 'Fourni' || d.statut === 'Valide').length
-    const enAttente = projet.checklistDocuments.filter(d => d.statut === 'En_Attente').length
-
-    this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.setTextColor(...this.colors.text)
-    this.doc.text(`Progression : ${fournis}/${total} documents fournis`, this.margin, this.currentY)
-    this.currentY += 6
-
-    // Barre de progression
-    const barW = this.contentWidth
-    const barH = 6
-    this.doc.setFillColor(...this.colors.bgMedium)
-    this.doc.roundedRect(this.margin, this.currentY, barW, barH, 2, 2, 'F')
-    if (fournis > 0) {
-      this.doc.setFillColor(...this.colors.green)
-      this.doc.roundedRect(this.margin, this.currentY, barW * (fournis / total), barH, 2, 2, 'F')
-    }
-    if (enAttente > 0) {
-      const startX = this.margin + barW * (fournis / total)
-      this.doc.setFillColor(...this.colors.orange)
-      this.doc.rect(startX, this.currentY, barW * (enAttente / total), barH, 'F')
-    }
-    this.currentY += barH + 12
-
-    // Par categorie
-    const grouped: Record<string, any[]> = {}
-    projet.checklistDocuments.forEach(doc => {
-      const cat = doc.categorie || 'Autre'
-      if (!grouped[cat]) grouped[cat] = []
-      grouped[cat].push(doc)
-    })
-
-    const catLabels: Record<string, string> = {
-      'Identite': 'Identite',
-      'Revenus': 'Justificatifs de revenus',
-      'Patrimoine': 'Patrimoine',
-      'Fiscalite': 'Fiscalite',
-      'Societe': 'Documents societe',
-      'Bien_Immobilier': 'Bien immobilier',
-      'Travaux': 'Travaux',
-      'Autre': 'Autres documents'
-    }
-
-    const statusColors: Record<string, [number, number, number]> = {
-      'Non_Fourni': this.colors.red,
-      'En_Attente': this.colors.orange,
-      'Fourni': this.colors.green,
-      'Valide': this.colors.primaryLight
-    }
-    const statusLabels: Record<string, string> = {
-      'Non_Fourni': 'Manquant',
-      'En_Attente': 'En attente',
-      'Fourni': 'Fourni',
-      'Valide': 'Valide'
-    }
-
-    Object.entries(grouped).forEach(([cat, docs]) => {
-      this.checkPageBreak(15 + docs.length * 7)
-
-      this.doc.setFontSize(10)
-      this.doc.setFont('helvetica', 'bold')
-      this.doc.setTextColor(...this.colors.primary)
-      this.doc.text(catLabels[cat] || cat, this.margin, this.currentY)
-      this.currentY += 6
-
-      docs.forEach(d => {
-        this.checkPageBreak(7)
-        const color = statusColors[d.statut] || this.colors.textLight
-
-        this.doc.setFillColor(...color)
-        this.doc.circle(this.margin + 5, this.currentY - 1.5, 1.5, 'F')
-
-        this.doc.setFontSize(9)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.setTextColor(...this.colors.text)
-        const oblig = d.obligatoire ? ' *' : ''
-        this.doc.text(`${d.nomDocument}${oblig}`, this.margin + 10, this.currentY)
-
-        this.doc.setTextColor(...color)
-        this.doc.text(statusLabels[d.statut] || d.statut, this.pageWidth - this.margin - 5, this.currentY, { align: 'right' })
-
-        this.currentY += 6
-      })
-
-      this.currentY += 4
-    })
-
-    this.checkPageBreak(10)
-    this.currentY += 3
-    this.doc.setFontSize(8)
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.setTextColor(...this.colors.textLight)
-    this.doc.text('* Document obligatoire', this.margin, this.currentY)
-  }
 
   // ==========================================
   // PHOTOS
@@ -995,9 +993,9 @@ class PDFGeneratorPro {
     if (!photos || photos.length === 0) return
 
     this.addPage()
-    this.sectionPages['IV. Photos du bien'] = this.getPageNumber()
+    this.sectionPages['III. Photos du bien'] = this.getPageNumber()
 
-    this.drawSectionTitle('IV. Photos du bien')
+    this.drawSectionTitle('III. Photos du bien')
 
     // Charger les images en parallele
     const loadPromises = photos.map(async (photo) => {
@@ -1092,71 +1090,89 @@ class PDFGeneratorPro {
     this.currentY += imgH + labelH + 5
   }
 
+
   // ==========================================
-  // ANNEXES
+  // COMPARABLES DE MARCHE
   // ==========================================
 
-  private generateAnnexes(projet: Projet): void {
+  private async generateComparables(projet: Projet): Promise<void> {
+    const comparables = projet.comparables
+    if (!comparables || comparables.length === 0) return
+
     this.addPage()
-    this.sectionPages['Annexes'] = this.getPageNumber()
+    this.sectionPages['IV. Comparables de marche'] = this.getPageNumber()
 
-    this.drawSectionTitle('Annexes')
+    this.drawSectionTitle('IV. Comparables de marche')
 
     this.doc.setFontSize(10)
     this.doc.setFont('helvetica', 'normal')
     this.doc.setTextColor(...this.colors.text)
+    this.doc.text(
+      'Etude comparative des biens similaires actuellement sur le marche.',
+      this.margin, this.currentY
+    )
+    this.currentY += 10
 
-    if (projet.checklistDocuments && projet.checklistDocuments.length > 0) {
-      this.doc.text('Documents a joindre au dossier :', this.margin, this.currentY)
-      this.currentY += 8
+    for (const comp of comparables) {
+      this.checkPageBreak(55)
 
-      const grouped: Record<string, string[]> = {}
-      projet.checklistDocuments.forEach(doc => {
-        const cat = doc.categorie || 'Autre'
-        if (!grouped[cat]) grouped[cat] = []
-        grouped[cat].push(doc.nomDocument)
-      })
+      // Card
+      this.doc.setFillColor(...this.colors.bgLight)
+      this.doc.roundedRect(this.margin, this.currentY - 2, this.contentWidth, 45, 2, 2, 'F')
+      this.doc.setFillColor(...this.colors.primaryLight)
+      this.doc.rect(this.margin, this.currentY - 2, 3, 45, 'F')
 
-      Object.entries(grouped).forEach(([cat, docs]) => {
-        this.checkPageBreak(10 + docs.length * 6)
+      const imageX = this.margin + 8
+      const textX = this.margin + 55
 
-        this.doc.setFontSize(9)
-        this.doc.setFont('helvetica', 'bold')
-        this.doc.setTextColor(...this.colors.primary)
-        this.doc.text(cat.replace(/_/g, ' '), this.margin + 3, this.currentY)
-        this.currentY += 5
+      // Photo (premiere image)
+      if (comp.images && comp.images.length > 0) {
+        try {
+          const imgBase64 = await this.loadImageAsBase64(comp.images[0])
+          if (imgBase64) {
+            const format = imgBase64.includes('image/png') ? 'PNG' : 'JPEG'
+            this.doc.addImage(imgBase64, format, imageX, this.currentY, 40, 30)
+          }
+        } catch {
+          this.doc.setFillColor(...this.colors.bgMedium)
+          this.doc.rect(imageX, this.currentY, 40, 30, 'F')
+        }
+      }
 
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.setTextColor(...this.colors.text)
-        docs.forEach(d => {
-          this.doc.text(`-  ${d}`, this.margin + 8, this.currentY)
-          this.currentY += 5
-        })
-        this.currentY += 3
-      })
-    } else {
-      const documents = [
-        'Cartes d\'identite',
-        'Justificatifs de revenus (3 derniers bulletins de salaire)',
-        'Avis d\'imposition (2 derniers)',
-        'Releves de comptes bancaires (3 derniers mois)',
-        'Compromis de vente ou promesse',
-        'Devis travaux detailles',
-        'Photos du bien',
-        'Statuts de la societe (si applicable)',
-        'Attestation d\'assurance emprunteur',
-      ]
+      // Titre
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      const titre = (comp.titre || 'Annonce').substring(0, 50)
+      this.doc.text(titre, textX, this.currentY + 5)
 
-      documents.forEach(d => {
-        this.checkPageBreak(7)
-        this.doc.setFillColor(...this.colors.primaryLight)
-        this.doc.circle(this.margin + 4, this.currentY - 1.5, 1.2, 'F')
-        this.doc.setFontSize(10)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.setTextColor(...this.colors.text)
-        this.doc.text(d, this.margin + 10, this.currentY)
-        this.currentY += 7
-      })
+      // Details
+      this.doc.setFontSize(9)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+
+      let detailY = this.currentY + 12
+      if (comp.prix) {
+        this.doc.text(`Prix : ${this.fmt(comp.prix)} EUR`, textX, detailY)
+        detailY += 5
+      }
+      if (comp.surface) {
+        this.doc.text(`Surface : ${Math.round(Number(comp.surface))} m2`, textX, detailY)
+        detailY += 5
+      }
+      if (comp.pieces) {
+        this.doc.text(`Pieces : ${comp.pieces}`, textX, detailY)
+        detailY += 5
+      }
+      if (comp.loyer) {
+        this.doc.text(`Loyer : ${this.fmt(comp.loyer)} EUR/mois`, textX, detailY)
+        detailY += 5
+      }
+      if (comp.ville) {
+        this.doc.text(`Localisation : ${comp.ville} ${comp.codePostal || ''}`, textX, detailY)
+      }
+
+      this.currentY += 50
     }
   }
 
@@ -1195,20 +1211,19 @@ class PDFGeneratorPro {
       try { await fn() } catch (e) { console.error(`PDF section "${label}" error:`, e) }
     }
 
-    // Phase 1: Page de garde
-    safe('Page de garde', () => this.generateCoverPage(projet))
+    // Phase 1: Page de garde (async pour photo de couverture)
+    await safeAsync('Page de garde', () => this.generateCoverPage(projet))
 
     // Phase 2: Sections de contenu
     safe('Porteurs', () => this.generatePorteurs(projet))
     safe('Localisation', () => this.generateLocalisation(projet))
     safe('Bien et projet', () => this.generateBienProjet(projet))
     safe('Financement', () => this.generateFinancement(projet))
-    safe('Checklist', () => this.generateChecklist(projet))
-
     // Section photos (async: chargement des images)
     await safeAsync('Photos', () => this.generatePhotos(projet))
 
-    safe('Annexes', () => this.generateAnnexes(projet))
+    // Section comparables (async: chargement des images)
+    await safeAsync('Comparables', () => this.generateComparables(projet))
 
     // Phase 3: Sommaire (insere en page 2)
     try {

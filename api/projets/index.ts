@@ -93,6 +93,18 @@ const createProjetSchema = z.object({
   elementsBien: z.array(elementBienSchema).optional(),
   travaux: z.array(travauxSchema).optional(),
   photos: z.array(z.union([z.string(), z.object({ url: z.string() }).passthrough()])).optional(),
+  photoCouverture: z.string().optional().nullable(),
+  comparables: z.array(z.object({
+    url: z.string(),
+    titre: z.string().max(500).optional(),
+    prix: z.number().min(0).optional(),
+    surface: z.number().min(0).optional(),
+    pieces: z.number().min(0).optional(),
+    loyer: z.number().min(0).optional().nullable(),
+    ville: z.string().max(255).optional(),
+    codePostal: z.string().max(10).optional(),
+    images: z.array(z.string()).optional(),
+  })).optional(),
 });
 
 function getUserFromRequest(req: VercelRequest) {
@@ -159,12 +171,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos } = validation.data;
+      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos, photoCouverture } = validation.data;
 
       // 1. Creer le projet
       const projetResult = await sql`
-        INSERT INTO projets (user_id, nom, description, status)
-        VALUES (${user.userId}, ${nom}, ${description || null}, ${status || 'Analyse'})
+        INSERT INTO projets (user_id, nom, description, status, photo_couverture)
+        VALUES (${user.userId}, ${nom}, ${description || null}, ${status || 'Analyse'}, ${photoCouverture || null})
         RETURNING *
       `;
 
@@ -341,7 +353,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // 8. Retourner le projet cree avec les donnees completes
+      // 8. Creer les comparables de marche si fournis
+      if (comparables && Array.isArray(comparables) && comparables.length > 0) {
+        for (const comp of comparables) {
+          await sql`
+            INSERT INTO comparables_marche (
+              projet_id, url, titre, prix, surface, pieces, loyer, ville, code_postal, images
+            ) VALUES (
+              ${projetId}, ${comp.url}, ${comp.titre || null}, ${comp.prix || null},
+              ${comp.surface || null}, ${comp.pieces || null}, ${comp.loyer || null},
+              ${comp.ville || null}, ${comp.codePostal || null}, ${JSON.stringify(comp.images || [])}
+            )
+          `;
+        }
+      }
+
+      // 9. Retourner le projet cree avec les donnees completes
       const fullProjet = {
         ...projet,
         bienImmobilier: bien || null,

@@ -283,9 +283,30 @@ export interface Projet {
   // Documents checklist
   checklistDocuments: ChecklistDocument[];
 
+  // Photo de couverture (base64)
+  photoCouverture?: string;
+
+  // Comparables de marche
+  comparables?: ComparableMarche[];
+
   // Métadonnées
   dateCreation: Date;
   dateModification: Date;
+}
+
+export interface ComparableMarche {
+  id: string;
+  projetId: string;
+  url: string;
+  titre: string;
+  prix: number;
+  surface: number;
+  pieces: number;
+  loyer?: number;
+  ville: string;
+  codePostal?: string;
+  images: string[];
+  createdAt: Date;
 }
 
 /**
@@ -584,6 +605,22 @@ export interface CreateProjetForm {
 
   // Photos (base64)
   photos?: string[];
+
+  // Photo de couverture (base64)
+  photoCouverture?: string;
+
+  // Comparables de marche
+  comparables?: Array<{
+    url: string;
+    titre?: string;
+    prix?: number;
+    surface?: number;
+    pieces?: number;
+    loyer?: number;
+    ville?: string;
+    codePostal?: string;
+    images?: string[];
+  }>;
 
   // Financement
   financement: Partial<PlanFinancement>;

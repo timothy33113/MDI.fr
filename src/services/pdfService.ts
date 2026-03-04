@@ -161,6 +161,8 @@ class PDFService {
           dateCalcul: new Date()
         },
         checklistDocuments: response.data.checklistDocuments || [],
+        photoCouverture: response.data.projet.photoCouverture || undefined,
+        comparables: response.data.comparables || [],
         dateCreation: new Date(response.data.projet.dateCreation),
         dateModification: new Date(response.data.projet.dateModification)
       }
@@ -237,6 +239,8 @@ class PDFService {
           dateCalcul: new Date()
         },
         checklistDocuments: response.data.checklistDocuments || [],
+        photoCouverture: response.data.projet.photoCouverture || undefined,
+        comparables: response.data.comparables || [],
         dateCreation: new Date(response.data.projet.dateCreation),
         dateModification: new Date(response.data.projet.dateModification)
       }

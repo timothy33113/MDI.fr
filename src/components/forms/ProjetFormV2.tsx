@@ -3,7 +3,7 @@ import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocu
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Camera, X, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
+import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Camera, X, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3, Star } from 'lucide-react'
 import api from '@/services/api'
 
 interface ProjetFormV2Props {
@@ -43,10 +43,14 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   const [adresse, setAdresse] = useState(initialProjet?.bienImmobilier?.adresse || '')
   const [codePostal, setCodePostal] = useState(initialProjet?.bienImmobilier?.codePostal || '')
   const [ville, setVille] = useState(initialProjet?.bienImmobilier?.ville || '')
+  const [typeBien, setTypeBien] = useState(initialProjet?.bienImmobilier?.type || '')
   const [photos, setPhotos] = useState<string[]>(
     initialProjet?.bienImmobilier?.photos
       ? initialProjet.bienImmobilier.photos.map(p => p.url)
       : []
+  )
+  const [photoCouverture, setPhotoCouverture] = useState<string | null>(
+    initialProjet?.photoCouverture || null
   )
 
   // Onglet 2: Porteurs du projet
@@ -103,6 +107,36 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   const [isLeboncoinExpanded, setIsLeboncoinExpanded] = useState(false)
   const [leboncoinUrl, setLeboncoinUrl] = useState('')
   const [isLoadingLeboncoin, setIsLoadingLeboncoin] = useState(false)
+
+  // Comparables de marche
+  interface ComparableInput {
+    url: string
+    titre?: string
+    prix?: number
+    surface?: number
+    pieces?: number
+    loyer?: number
+    ville?: string
+    codePostal?: string
+    images?: string[]
+    loading?: boolean
+    error?: string
+  }
+  const [comparables, setComparables] = useState<ComparableInput[]>(
+    initialProjet?.comparables?.map(c => ({
+      url: c.url,
+      titre: c.titre,
+      prix: c.prix,
+      surface: c.surface,
+      pieces: c.pieces,
+      loyer: c.loyer,
+      ville: c.ville,
+      codePostal: c.codePostal,
+      images: c.images,
+    })) || []
+  )
+  const [comparableUrl, setComparableUrl] = useState('')
+  const [comparableLoading, setComparableLoading] = useState(false)
 
   // Onglet 6: Analyse serveur
   const [analysisData, setAnalysisData] = useState<AnalysesRentabilite | null>(null)
@@ -449,6 +483,20 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         console.log(`✅ ${photosImportees.length} photos importées depuis Leboncoin`)
       }
 
+      // Determiner le type principal du bien (immeuble si multi-unit ou type brut)
+      const rawPropertyType = (data.analysis?.propertyType || data.propertyType || '').toLowerCase()
+      if (rawPropertyType.includes('immeuble') || data.analysis?.isMultiUnit) {
+        setTypeBien('Immeuble')
+      } else if (rawPropertyType.includes('maison') || rawPropertyType.includes('house')) {
+        setTypeBien('Maison')
+      } else if (rawPropertyType.includes('appartement') || rawPropertyType.includes('apartment')) {
+        setTypeBien('Appartement')
+      } else if (rawPropertyType.includes('local') || rawPropertyType.includes('commerce')) {
+        setTypeBien('Local_Commercial')
+      } else if (rawPropertyType.includes('terrain')) {
+        setTypeBien('Terrain')
+      }
+
       // Créer les éléments de bien basés sur l'analyse LLM
       if (data.analysis?.isMultiUnit && data.analysis?.units && data.analysis.units.length > 0) {
         // Cas d'un immeuble multi-logements - créer un élément pour chaque unité
@@ -658,7 +706,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         adresse: adresse || '',
         codePostal: codePostal || '',
         ville: ville || '',
-        type: bienPrincipal?.type || 'Appartement',
+        type: typeBien || bienPrincipal?.type || 'Appartement',
         superficie: elementsBien.reduce((sum, e) => sum + e.superficie, 0),
         nombrePieces: elementsBien.reduce((sum, e) => sum + (e.nombrePieces || 0), 0),
         etatActuel: bienPrincipal?.etat || 'Bon',
@@ -669,6 +717,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       elementsBien: elementsBien.length > 0 ? elementsBien.map(({ id, ...rest }) => rest) : undefined,
       travaux: travaux.length > 0 ? travaux.map(({ id, ...rest }) => rest) : undefined,
       photos: photos.length > 0 ? photos : undefined,
+      photoCouverture: photoCouverture || undefined,
+      comparables: comparables.filter(c => !c.loading && !c.error).map(({ loading, error, ...rest }) => rest),
       financement
     }
 
@@ -833,6 +883,76 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   onChange={(e) => setVille(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="text-xl font-semibold mb-4">Photo de couverture</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Cette photo sera affichee en page de garde du dossier bancaire
+              </p>
+
+              {photoCouverture ? (
+                <div className="relative inline-block">
+                  <img
+                    src={photoCouverture}
+                    alt="Photo de couverture"
+                    className="w-64 h-40 object-cover rounded-lg border-2 border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoCouverture(null)}
+                    className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                    <Star className="h-3 w-3" /> Couverture
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <label className="cursor-pointer inline-block">
+                    <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                      <Camera className="h-8 w-8 text-blue-400 mx-auto mb-1" />
+                      <p className="text-sm text-blue-600">Telecharger une photo</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (!file.type.startsWith('image/')) return
+                        try {
+                          const compressed = await compressImage(file)
+                          setPhotoCouverture(compressed)
+                        } catch (err) {
+                          console.error('Erreur compression photo couverture:', err)
+                        }
+                        e.target.value = ''
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {photos.length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-2">Ou choisir parmi les photos existantes :</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {photos.map((photo, i) => (
+                          <img
+                            key={i}
+                            src={photo}
+                            alt={`Photo ${i + 1}`}
+                            className="w-20 h-14 object-cover rounded cursor-pointer hover:ring-2 ring-blue-500 border border-gray-200"
+                            onClick={() => setPhotoCouverture(photo)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4">
@@ -1109,6 +1229,88 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 </div>
               </Card>
             )}
+
+            {/* Comparables de marche */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-xl font-semibold mb-2">Comparables de marche</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Ajoutez des annonces Leboncoin similaires pour justifier les loyers estimes dans le dossier bancaire
+              </p>
+
+              <div className="flex gap-2 mb-4">
+                <Input
+                  value={comparableUrl}
+                  onChange={(e) => setComparableUrl(e.target.value)}
+                  placeholder="URL Leboncoin (ex: https://www.leboncoin.fr/...)"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  disabled={!comparableUrl || comparableLoading}
+                  onClick={async () => {
+                    if (!comparableUrl) return
+                    setComparableLoading(true)
+                    try {
+                      const response = await api.post('/leboncoin/scrape', { url: comparableUrl })
+                      const data = response.data?.data
+                      if (data) {
+                        setComparables(prev => [...prev, {
+                          url: comparableUrl,
+                          titre: data.title || '',
+                          prix: Number(data.price) || 0,
+                          surface: Number(data.surface || data.attributes?.surface) || 0,
+                          pieces: Number(data.rooms || data.attributes?.rooms) || 0,
+                          loyer: undefined,
+                          ville: data.location?.city || '',
+                          codePostal: data.location?.postalCode || data.location?.zipcode || '',
+                          images: data.images || [],
+                        }])
+                        setComparableUrl('')
+                      }
+                    } catch (err: any) {
+                      console.error('Erreur scrape comparable:', err)
+                      alert('Impossible de recuperer les donnees de cette annonce')
+                    }
+                    setComparableLoading(false)
+                  }}
+                >
+                  {comparableLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Ajouter
+                </Button>
+              </div>
+
+              {comparables.length > 0 && (
+                <div className="space-y-3">
+                  {comparables.map((comp, i) => (
+                    <Card key={i} className="p-3 flex gap-3 items-start">
+                      {comp.images && comp.images.length > 0 && (
+                        <img
+                          src={comp.images[0]}
+                          alt={comp.titre || 'Comparable'}
+                          className="w-24 h-16 object-cover rounded flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{comp.titre || comp.url}</p>
+                        <div className="text-xs text-gray-500 space-x-3 mt-1">
+                          {comp.prix ? <span>{comp.prix.toLocaleString('fr-FR')} €</span> : null}
+                          {comp.surface ? <span>{comp.surface} m²</span> : null}
+                          {comp.pieces ? <span>{comp.pieces} pieces</span> : null}
+                          {comp.ville ? <span>{comp.ville}</span> : null}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setComparables(prev => prev.filter((_, idx) => idx !== i))}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded flex-shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

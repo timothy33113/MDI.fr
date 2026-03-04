@@ -56,7 +56,12 @@ const EditProjetPage: React.FC = () => {
         return;
       }
 
-      // Utiliser pdfService pour récupérer les données complètes (avec rentabilité et checklist)
+      if (!projet?.porteurs || projet.porteurs.length === 0) {
+        toast.error('Veuillez ajouter au moins un porteur du projet avant de générer le dossier bancaire.');
+        return;
+      }
+
+      // Utiliser pdfService pour récupérer les données complètes
       const result = await pdfService.downloadPDFPro(id);
 
       if (result.success) {
