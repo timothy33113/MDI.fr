@@ -124,6 +124,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ORDER BY pp.pourcentage_projet DESC
     `;
 
+    // 7b. Recuperer les structures des associes (pour les porteurs personne morale)
+    const associeStructureIds: string[] = [];
+    porteurs.forEach((p: any) => {
+      const pm = p.personne_morale;
+      if (pm?.associes) {
+        pm.associes.forEach((a: any) => {
+          if (a.structureId && !associeStructureIds.includes(a.structureId)) {
+            associeStructureIds.push(a.structureId);
+          }
+        });
+      }
+    });
+    let associeStructures: any[] = [];
+    if (associeStructureIds.length > 0) {
+      associeStructures = await sql`
+        SELECT id, nom, type, personne_physique, personne_morale
+        FROM structures
+        WHERE id = ANY(${associeStructureIds})
+      `;
+    }
+    const associeStructureMap = new Map(associeStructures.map((s: any) => [s.id, s]));
+
     // 8. Recuperer l'analyse de rentabilite
     const analyses = await sql`
       SELECT * FROM analyses_rentabilite
@@ -240,7 +262,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           email: p.structure_email,
           photo: p.structure_photo,
           personnePhysique: p.personne_physique,
-          personneMorale: p.personne_morale,
+          personneMorale: p.personne_morale ? {
+            ...p.personne_morale,
+            associes: (p.personne_morale.associes || []).map((a: any) => {
+              const struct = associeStructureMap.get(a.structureId);
+              return {
+                ...a,
+                structure: struct ? {
+                  id: struct.id,
+                  nom: struct.nom,
+                  type: struct.type,
+                  personnePhysique: struct.personne_physique,
+                  personneMorale: struct.personne_morale
+                } : null
+              };
+            })
+          } : null,
           detenteurs: p.detenteurs
         }
       })),

@@ -584,6 +584,139 @@ class PDFGeneratorPro {
 
       this.currentY += 5
 
+      // === Associes de la structure (pour les personnes morales / SCI) ===
+      const associes = pm?.associes
+      if (associes && Array.isArray(associes) && associes.length > 0) {
+        this.checkPageBreak(30)
+
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.primaryLight)
+        this.doc.text('ASSOCIES', colLeft, this.currentY)
+        this.currentY += 8
+
+        associes.forEach((associe: any, aIdx: number) => {
+          this.checkPageBreak(40)
+
+          // En-tete associe
+          this.doc.setFillColor(245, 247, 250)
+          this.doc.roundedRect(this.margin + 5, this.currentY - 4, this.contentWidth - 10, 12, 1.5, 1.5, 'F')
+          this.doc.setFontSize(10)
+          this.doc.setFont('helvetica', 'bold')
+          this.doc.setTextColor(...this.colors.primary)
+          const associeNom = [associe.prenom, associe.nom].filter(Boolean).join(' ') || 'Associe'
+          const fonctionStr = associe.fonction ? ` - ${associe.fonction}` : ''
+          this.doc.text(`${aIdx + 1}. ${associeNom}${fonctionStr}`, this.margin + 10, this.currentY + 3)
+          this.currentY += 14
+
+          // Recuperer les details de la structure de l'associe
+          const aStruct = associe.structure
+          const aPP = aStruct?.personnePhysique
+
+          if (aPP) {
+            const aColLeft = this.margin + 10
+            const aColRight = this.pageWidth / 2 + 5
+            let aLeftY = this.currentY
+            let aRightY = this.currentY
+
+            // Colonne gauche: Profil
+            this.doc.setFontSize(8)
+            this.doc.setFont('helvetica', 'bold')
+            this.doc.setTextColor(...this.colors.primaryLight)
+            this.doc.text('PROFIL', aColLeft, aLeftY)
+            aLeftY += 5
+
+            this.doc.setFont('helvetica', 'normal')
+            this.doc.setTextColor(...this.colors.text)
+            this.doc.setFontSize(8)
+
+            if (aPP.emploi || aPP.employeur) {
+              this.doc.text(`Emploi : ${[aPP.emploi, aPP.employeur].filter(Boolean).join(' - ')}`, aColLeft, aLeftY)
+              aLeftY += 4.5
+            }
+            if (aPP.typeContrat) {
+              this.doc.text(`Contrat : ${aPP.typeContrat.replace(/_/g, ' ')}`, aColLeft, aLeftY)
+              aLeftY += 4.5
+            }
+            if (aPP.situationFamiliale) {
+              this.doc.text(`Situation : ${aPP.situationFamiliale.replace(/_/g, ' ')}`, aColLeft, aLeftY)
+              aLeftY += 4.5
+            }
+            if (aPP.anciennete) {
+              this.doc.text(`Anciennete : ${aPP.anciennete}`, aColLeft, aLeftY)
+              aLeftY += 4.5
+            }
+
+            // Colonne droite: Revenus + Charges
+            this.doc.setFontSize(8)
+            this.doc.setFont('helvetica', 'bold')
+            this.doc.setTextColor(...this.colors.primaryLight)
+            this.doc.text('REVENUS', aColRight, aRightY)
+            aRightY += 5
+
+            this.doc.setFont('helvetica', 'normal')
+            this.doc.setTextColor(...this.colors.text)
+            this.doc.setFontSize(8)
+
+            if (aPP.revenus) {
+              const rev = aPP.revenus
+              if (Number(rev.salaireMensuelNet) > 0) {
+                this.doc.text(`Salaire net : ${this.fmt(rev.salaireMensuelNet)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+              }
+              if (Number(rev.revenusLocatifs) > 0) {
+                this.doc.text(`Revenus locatifs : ${this.fmt(rev.revenusLocatifs)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+              }
+              if (Number(rev.totalMensuel) > 0) {
+                this.doc.setFont('helvetica', 'bold')
+                this.doc.text(`Total : ${this.fmt(rev.totalMensuel)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+                this.doc.setFont('helvetica', 'normal')
+              }
+            }
+
+            aRightY += 2
+            this.doc.setFont('helvetica', 'bold')
+            this.doc.setTextColor(...this.colors.primaryLight)
+            this.doc.text('CHARGES', aColRight, aRightY)
+            aRightY += 5
+
+            this.doc.setFont('helvetica', 'normal')
+            this.doc.setTextColor(...this.colors.text)
+
+            if (aPP.charges) {
+              const ch = aPP.charges
+              if (Number(ch.loyerMensuel) > 0) {
+                this.doc.text(`Loyer : ${this.fmt(ch.loyerMensuel)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+              }
+              if (Number(ch.mensualitesCredits) > 0) {
+                this.doc.text(`Credits : ${this.fmt(ch.mensualitesCredits)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+              }
+              if (Number(ch.totalMensuel) > 0) {
+                this.doc.setFont('helvetica', 'bold')
+                this.doc.text(`Total : ${this.fmt(ch.totalMensuel)} EUR/mois`, aColRight, aRightY)
+                aRightY += 4.5
+              }
+            }
+
+            this.currentY = Math.max(aLeftY, aRightY) + 3
+          }
+
+          // Separateur entre associes
+          if (aIdx < associes.length - 1) {
+            this.doc.setDrawColor(230, 230, 230)
+            this.doc.setLineWidth(0.2)
+            this.doc.line(this.margin + 10, this.currentY, this.pageWidth - this.margin - 10, this.currentY)
+            this.currentY += 5
+          }
+        })
+
+        this.currentY += 3
+      }
+
       // Separateur entre porteurs
       if (index < projet.porteurs.length - 1) {
         this.drawLine(this.currentY - 3, this.colors.bgMedium)
