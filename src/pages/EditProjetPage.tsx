@@ -38,9 +38,10 @@ const EditProjetPage: React.FC = () => {
       await updateProjet(id, data);
       alert('Projet mis à jour avec succès!');
       navigate('/projets');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la mise à jour du projet:', error);
-      alert('Erreur lors de la mise à jour du projet. Veuillez réessayer.');
+      const detail = error?.message || error?.response?.data?.error || String(error);
+      alert(`Erreur: ${detail}`);
     }
   };
 
