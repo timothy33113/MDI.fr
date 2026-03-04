@@ -292,10 +292,10 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   }
 
   // Compresser une image via canvas (max 1200px, JPEG 0.7)
-  const compressImage = (file: File): Promise<string> => {
+  const compressImage = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image()
-      const objectUrl = URL.createObjectURL(file)
+      const objectUrl = URL.createObjectURL(blob)
       img.onload = () => {
         const MAX = 1200
         let w = img.width
@@ -315,10 +315,18 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       }
       img.onerror = () => {
         URL.revokeObjectURL(objectUrl)
-        reject(new Error('Impossible de lire l\'image'))
+        reject(new Error('Format non supporte par le navigateur'))
       }
       img.src = objectUrl
     })
+  }
+
+  // Convertir HEIC en JPEG via heic2any
+  const convertHeicToJpeg = async (file: File): Promise<Blob> => {
+    const heic2anyModule = await import('heic2any')
+    const heic2any = heic2anyModule.default || heic2anyModule
+    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 })
+    return Array.isArray(result) ? result[0] : result
   }
 
   // Photos
@@ -327,10 +335,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(async file => {
-      const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
-        || file.type === 'image/heic' || file.type === 'image/heif'
-
-      if (!file.type.startsWith('image/') && !isHeic) {
+      if (!file.type.startsWith('image/') && !file.name.match(/\.(heic|heif)$/i)) {
         alert(`Le fichier "${file.name}" n'est pas une image.`)
         return
       }
@@ -340,26 +345,21 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       }
 
       try {
-        let imageFile = file
-
-        // Convertir HEIC/HEIF en JPEG (chargement dynamique de heic2any)
-        if (isHeic) {
-          console.log('HEIC detecte:', file.name, 'type:', file.type, 'size:', file.size)
-          const heic2anyModule = await import('heic2any')
-          const heic2any = heic2anyModule.default || heic2anyModule
-          console.log('heic2any charge, conversion...')
-          const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 })
-          // heic2any peut retourner un Blob ou un Blob[]
-          const blob = Array.isArray(result) ? result[0] : result
-          console.log('Conversion OK, blob size:', blob.size)
-          imageFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' })
+        // Strategie: essayer natif d'abord, puis heic2any en fallback
+        let compressed: string
+        try {
+          compressed = await compressImage(file)
+        } catch {
+          // Le navigateur ne supporte pas le format (HEIC sur Chrome)
+          // Fallback: conversion via heic2any
+          console.log('Conversion native echouee, essai heic2any pour', file.name)
+          const jpegBlob = await convertHeicToJpeg(file)
+          compressed = await compressImage(jpegBlob)
         }
-
-        const compressed = await compressImage(imageFile)
         setPhotos(prev => [...prev, compressed])
       } catch (err: any) {
-        console.error('Erreur traitement photo:', err, err?.message, err?.stack)
-        alert(`Erreur photo "${file.name}": ${err?.message || err}`)
+        console.error('Erreur traitement photo:', err)
+        alert(`Impossible de traiter "${file.name}". Essayez de la convertir en JPG avant.`)
       }
     })
 
