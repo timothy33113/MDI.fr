@@ -6,12 +6,14 @@ import { useStructuresContext as useStructures } from '@/contexts/StructuresCont
 import { useProjets } from '@/hooks/useProjets';
 import { CreateProjetForm, Projet } from '@/types';
 import { pdfService } from '@/services/pdfService';
+import { useToast } from '@/contexts/ToastContext';
 
 const EditProjetPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { structures } = useStructures();
   const { getProjetById, updateProjet } = useProjets();
+  const toast = useToast();
   const [projet, setProjet] = useState<Projet | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,12 +38,12 @@ const EditProjetPage: React.FC = () => {
 
     try {
       await updateProjet(id, data);
-      alert('Projet mis à jour avec succès!');
+      toast.success('Projet enregistré');
       navigate('/projets');
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du projet:', error);
       const detail = error?.message || error?.response?.data?.error || String(error);
-      alert(`Erreur: ${detail}`);
+      toast.error(detail, 'Erreur');
     }
   };
 
@@ -50,7 +52,7 @@ const EditProjetPage: React.FC = () => {
       console.log('🎯 Génération du dossier bancaire PDF...');
 
       if (!id) {
-        alert('Aucun projet chargé');
+        toast.warning('Aucun projet chargé');
         return;
       }
 
@@ -59,13 +61,13 @@ const EditProjetPage: React.FC = () => {
 
       if (result.success) {
         console.log('✅ PDF téléchargé avec succès');
-        alert('Dossier bancaire généré avec succès ! Le PDF a été téléchargé.');
+        toast.success('Dossier bancaire téléchargé');
       } else {
         throw new Error(result.error || 'Erreur inconnue');
       }
     } catch (error) {
       console.error('❌ Erreur lors de la génération du PDF:', error);
-      alert('Erreur lors de la génération du dossier. Veuillez réessayer.');
+      toast.error('Erreur lors de la génération du dossier. Veuillez réessayer.');
     }
   };
 
