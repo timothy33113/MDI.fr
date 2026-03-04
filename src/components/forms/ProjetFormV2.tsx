@@ -297,12 +297,33 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     if (!files) return
 
     Array.from(files).forEach(file => {
+      // Valider le fichier
+      if (!file.type.startsWith('image/')) {
+        alert(`Le fichier "${file.name}" n'est pas une image.`)
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`Le fichier "${file.name}" depasse 5 MB.`)
+        return
+      }
+
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotos(prev => [...prev, reader.result as string])
+      reader.onload = () => {
+        const result = reader.result as string
+        if (result && result.startsWith('data:image/')) {
+          setPhotos(prev => [...prev, result])
+        } else {
+          console.error('FileReader result invalide:', result?.substring(0, 50))
+        }
+      }
+      reader.onerror = () => {
+        console.error('Erreur FileReader:', reader.error)
       }
       reader.readAsDataURL(file)
     })
+
+    // Reset input pour pouvoir re-ajouter le meme fichier
+    e.target.value = ''
   }
 
   const removePhoto = (index: number) => {
@@ -812,12 +833,21 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 {photos.length > 0 && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {photos.map((photo, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={photo}
-                          alt={`Photo ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                        />
+                      <div key={index} className="relative group w-full h-32 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden">
+                        {photo && photo.length > 10 ? (
+                          <img
+                            src={photo}
+                            alt={`Photo ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                            Photo {index + 1}
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
