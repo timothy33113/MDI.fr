@@ -39,7 +39,7 @@ const NewProjetPage: React.FC = () => {
       const pdfGenerator = new PDFGeneratorPro();
 
       // Générer et télécharger le PDF
-      pdfGenerator.downloadPDF(newProjet);
+      await pdfGenerator.downloadPDF(newProjet);
       console.log('✅ PDF téléchargé avec succès');
 
       alert('Dossier bancaire généré avec succès ! Le PDF a été téléchargé.');

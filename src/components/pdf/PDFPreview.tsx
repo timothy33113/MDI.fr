@@ -25,7 +25,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ projet, onClose }) => {
 
     try {
       const pdfGenerator = new PDFGeneratorPro()
-      const blob = pdfGenerator.getPDFBlob(projet)
+      const blob = await pdfGenerator.getPDFBlob(projet)
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err) {
@@ -36,10 +36,10 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ projet, onClose }) => {
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const pdfGenerator = new PDFGeneratorPro()
     const filename = `dossier-bancaire-${projet.nom || 'projet'}-${new Date().toISOString().split('T')[0]}.pdf`
-    pdfGenerator.downloadPDF(projet, filename)
+    await pdfGenerator.downloadPDF(projet, filename)
   }
 
   const handleRegenerate = () => {

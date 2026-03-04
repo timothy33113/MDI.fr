@@ -167,7 +167,7 @@ class PDFService {
 
       const pdfGenerator = new PDFGeneratorPro()
       const filename = `dossier-bancaire-${projet.nom || 'projet'}-${new Date().toISOString().split('T')[0]}.pdf`
-      pdfGenerator.downloadPDF(projet, filename)
+      await pdfGenerator.downloadPDF(projet, filename)
       return { success: true }
     } catch (error: any) {
       console.error('Error generating PDF Pro:', error)
@@ -242,7 +242,7 @@ class PDFService {
       }
 
       const pdfGenerator = new PDFGeneratorPro()
-      const blob = pdfGenerator.getPDFBlob(projet)
+      const blob = await pdfGenerator.getPDFBlob(projet)
       return { success: true, blob }
     } catch (error: any) {
       console.error('Error generating PDF blob:', error)
