@@ -99,6 +99,12 @@ class PDFService {
     }
 
     try {
+      // Helper pour convertir les valeurs DB (strings) en nombres
+      const n = (v: any) => Number(v) || 0
+
+      const fin = response.data.financement
+      const a = response.data.analysesRentabilite
+
       // Convertir les donnees au format Projet
       const projet: Projet = {
         id: response.data.projet.id,
@@ -108,8 +114,39 @@ class PDFService {
         status: response.data.projet.status,
         porteurs: response.data.porteurs,
         bienImmobilier: response.data.bienImmobilier,
-        financement: response.data.financement,
-        analysesRentabilite: response.data.analysesRentabilite || {
+        financement: fin ? {
+          ...fin,
+          prixAchat: n(fin.prixAchat),
+          fraisNotaire: n(fin.fraisNotaire),
+          fraisAgence: n(fin.fraisAgence),
+          montantTravaux: n(fin.montantTravaux),
+          fraisDossierBancaire: n(fin.fraisDossierBancaire),
+          fraisGarantie: n(fin.fraisGarantie),
+          autresFrais: n(fin.autresFrais),
+          coutTotalProjet: n(fin.coutTotalProjet),
+          apportPersonnel: n(fin.apportPersonnel),
+          montantEmprunt: n(fin.montantEmprunt),
+          dureeCredit: n(fin.dureeCredit),
+          tauxInteretEstime: n(fin.tauxInteretEstime),
+          tauxAssuranceEstime: n(fin.tauxAssuranceEstime),
+          mensualiteCapitalInterets: n(fin.mensualiteCapitalInterets),
+          mensualiteAssurance: n(fin.mensualiteAssurance),
+          mensualiteTotale: n(fin.mensualiteTotale),
+        } : null,
+        analysesRentabilite: a ? {
+          id: a.id,
+          projetId: response.data.projet.id,
+          rentabiliteBrute: n(a.rentabiliteBrute),
+          chargesAnnuelles: n(a.chargesAnnuelles),
+          rentabiliteNette: n(a.rentabiliteNette),
+          cashFlowMensuel: n(a.cashFlowMensuel),
+          cashFlowAnnuel: n(a.cashFlowAnnuel),
+          roi: n(a.roi),
+          revenusPorteurs: n(a.revenusPorteurs),
+          tauxEndettementProjet: n(a.tauxEndettementProjet),
+          anneesRecuperationApport: n(a.anneesRecuperationApport),
+          dateCalcul: new Date()
+        } : {
           id: '',
           projetId: response.data.projet.id,
           rentabiliteBrute: 0,
@@ -159,6 +196,10 @@ class PDFService {
     }
 
     try {
+      const n = (v: any) => Number(v) || 0
+      const fin = response.data.financement
+      const a = response.data.analysesRentabilite
+
       const projet: Projet = {
         id: response.data.projet.id,
         userId: response.data.projet.userId,
@@ -167,8 +208,28 @@ class PDFService {
         status: response.data.projet.status,
         porteurs: response.data.porteurs,
         bienImmobilier: response.data.bienImmobilier,
-        financement: response.data.financement,
-        analysesRentabilite: response.data.analysesRentabilite || {
+        financement: fin ? {
+          ...fin,
+          prixAchat: n(fin.prixAchat),
+          fraisNotaire: n(fin.fraisNotaire),
+          fraisAgence: n(fin.fraisAgence),
+          montantTravaux: n(fin.montantTravaux),
+          apportPersonnel: n(fin.apportPersonnel),
+          montantEmprunt: n(fin.montantEmprunt),
+          coutTotalProjet: n(fin.coutTotalProjet),
+          dureeCredit: n(fin.dureeCredit),
+          tauxInteretEstime: n(fin.tauxInteretEstime),
+          mensualiteTotale: n(fin.mensualiteTotale),
+        } : null,
+        analysesRentabilite: a ? {
+          id: a.id, projetId: response.data.projet.id,
+          rentabiliteBrute: n(a.rentabiliteBrute), chargesAnnuelles: n(a.chargesAnnuelles),
+          rentabiliteNette: n(a.rentabiliteNette), cashFlowMensuel: n(a.cashFlowMensuel),
+          cashFlowAnnuel: n(a.cashFlowAnnuel), roi: n(a.roi),
+          revenusPorteurs: n(a.revenusPorteurs), tauxEndettementProjet: n(a.tauxEndettementProjet),
+          anneesRecuperationApport: n(a.anneesRecuperationApport),
+          dateCalcul: new Date()
+        } : {
           id: '', projetId: response.data.projet.id,
           rentabiliteBrute: 0, chargesAnnuelles: 0, rentabiliteNette: 0,
           cashFlowMensuel: 0, cashFlowAnnuel: 0, roi: 0,

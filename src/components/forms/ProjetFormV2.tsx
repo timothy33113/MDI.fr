@@ -60,7 +60,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     initialProjet?.porteurs && initialProjet.porteurs.length > 0
       ? initialProjet.porteurs
           .filter(p => isValidUUID(p.structureId)) // Filtrer les IDs invalides
-          .map(p => ({ structureId: p.structureId, pourcentageProjet: p.pourcentageProjet }))
+          .map(p => ({ structureId: p.structureId, pourcentageProjet: Number(p.pourcentageProjet) || 0 }))
       : [] // Commencer sans porteurs pour permettre la création de projets sans structures
   )
   const [totalPourcentage, setTotalPourcentage] = useState(0)
@@ -70,12 +70,12 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     initialProjet?.bienImmobilier?.elements?.map(e => ({
       id: e.id || crypto.randomUUID(),
       type: e.type,
-      superficie: e.superficie,
-      nombrePieces: e.nombrePieces,
+      superficie: Number(e.superficie) || 0,
+      nombrePieces: e.nombrePieces ? Number(e.nombrePieces) : undefined,
       etat: e.etatActuel || 'Bon',
-      enLocation: e.loyerMensuel && e.loyerMensuel > 0 ? true : false,
-      loyerMensuel: e.loyerMensuel || 0,
-      chargesMensuelles: e.chargesMensuelles || 0
+      enLocation: e.loyerMensuel && Number(e.loyerMensuel) > 0 ? true : false,
+      loyerMensuel: Number(e.loyerMensuel) || 0,
+      chargesMensuelles: Number(e.chargesMensuelles) || 0
     })) || []
   )
 
@@ -85,18 +85,18 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       id: t.id || crypto.randomUUID(),
       type: t.categorie,  // Map 'categorie' from backend to 'type' for frontend
       description: t.description,
-      montant: t.montant
+      montant: Number(t.montant) || 0
     })) || []
   )
 
   // Onglet 5: Financement
   const [financement, setFinancement] = useState({
-    prixAchat: initialProjet?.financement?.prixAchat || 0,
-    fraisNotaire: initialProjet?.financement?.fraisNotaire || 0,
-    montantTravaux: initialProjet?.financement?.montantTravaux || 0,
-    apportPersonnel: initialProjet?.financement?.apportPersonnel || 0,
-    dureeCredit: initialProjet?.financement?.dureeCredit || 20,
-    tauxInteretEstime: initialProjet?.financement?.tauxInteretEstime || 3.5
+    prixAchat: Number(initialProjet?.financement?.prixAchat) || 0,
+    fraisNotaire: Number(initialProjet?.financement?.fraisNotaire) || 0,
+    montantTravaux: Number(initialProjet?.financement?.montantTravaux) || 0,
+    apportPersonnel: Number(initialProjet?.financement?.apportPersonnel) || 0,
+    dureeCredit: Number(initialProjet?.financement?.dureeCredit) || 20,
+    tauxInteretEstime: Number(initialProjet?.financement?.tauxInteretEstime) || 3.5
   })
 
   // Import Leboncoin
@@ -635,7 +635,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   return (
     <form onSubmit={handleSubmit}>
       <Card className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Créer un nouveau projet</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">{initialProjet ? 'Modifier le projet' : 'Créer un nouveau projet'}</h2>
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
