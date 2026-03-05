@@ -334,7 +334,7 @@ class PDFGeneratorPro {
   // PORTEURS + PATRIMOINE
   // ==========================================
 
-  private generatePorteurs(projet: Projet): void {
+  private async generatePorteurs(projet: Projet): Promise<void> {
     if (!projet.porteurs || projet.porteurs.length === 0) return
 
     this.addPage()
@@ -344,7 +344,8 @@ class PDFGeneratorPro {
     this.drawSectionTitle('I. Situation personnelle')
     this.drawSubTitle('Porteurs du projet')
 
-    projet.porteurs.forEach((porteur, index) => {
+    for (let index = 0; index < projet.porteurs.length; index++) {
+      const porteur = projet.porteurs[index]
       const struct = (porteur as any).structure
       const nom = struct?.nom || 'Porteur'
       const isPersonnePhysique = struct?.type !== 'PERSONNE_MORALE'
@@ -552,7 +553,7 @@ class PDFGeneratorPro {
         }
 
         // Fiche detaillee pour chaque bien
-        this.renderBiensDetailles(biens, credits, nom)
+        await this.renderBiensDetailles(biens, credits, nom)
 
         // Credits non associes a un bien
         const biensIds = biens.map((b: any) => b.id)
@@ -594,7 +595,8 @@ class PDFGeneratorPro {
         this.doc.text('ASSOCIES', colLeft, this.currentY)
         this.currentY += 8
 
-        associes.forEach((associe: any, aIdx: number) => {
+        for (let aIdx = 0; aIdx < associes.length; aIdx++) {
+          const associe = associes[aIdx]
           this.checkPageBreak(40)
 
           // En-tete associe
@@ -709,7 +711,7 @@ class PDFGeneratorPro {
             const aCredits: any[] = aPatrimoine?.creditsEnCours || []
             if (aBiens.length > 0 || aCredits.length > 0) {
               this.currentY += 2
-              this.renderBiensDetailles(aBiens, aCredits, associeNom)
+              await this.renderBiensDetailles(aBiens, aCredits, associeNom)
             }
           }
 
@@ -720,7 +722,7 @@ class PDFGeneratorPro {
             this.doc.line(this.margin + 10, this.currentY, this.pageWidth - this.margin - 10, this.currentY)
             this.currentY += 5
           }
-        })
+        }
 
         this.currentY += 3
       }
@@ -730,15 +732,16 @@ class PDFGeneratorPro {
         this.drawLine(this.currentY - 3, this.colors.bgMedium)
         this.currentY += 5
       }
-    })
+    }
   }
 
   // ==========================================
   // FICHES BIENS PATRIMOINE
   // ==========================================
 
-  private renderBiensDetailles(biens: any[], allCredits: any[], proprietaire: string): void {
-    biens.forEach((bien: any, bIdx: number) => {
+  private async renderBiensDetailles(biens: any[], allCredits: any[], proprietaire: string): Promise<void> {
+    for (let bIdx = 0; bIdx < biens.length; bIdx++) {
+      const bien = biens[bIdx]
       this.checkPageBreak(55)
 
       const adresse = bien.adresse || 'Adresse non renseignee'
@@ -904,6 +907,51 @@ class PDFGeneratorPro {
         })
       }
 
+      // Photos du bien
+      const photos: string[] = bien.photos || []
+      if (photos.length > 0) {
+        this.checkPageBreak(30)
+        this.doc.setFontSize(8)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.primaryLight)
+        this.doc.text('PHOTOS', col1X, this.currentY)
+        this.currentY += 5
+
+        const photoW = 35
+        const photoH = 25
+        const gap = 3
+        const maxPerRow = Math.floor((cardW - 16) / (photoW + gap))
+        let pX = cardX + 8
+        let pCount = 0
+
+        for (const photoSrc of photos.slice(0, 6)) {
+          try {
+            const base64 = photoSrc.startsWith('data:')
+              ? photoSrc
+              : await this.loadImageAsBase64(photoSrc)
+            if (base64) {
+              if (pCount > 0 && pCount % maxPerRow === 0) {
+                pX = cardX + 8
+                this.currentY += photoH + gap
+                this.checkPageBreak(photoH + 5)
+              }
+              const format = base64.includes('image/png') ? 'PNG' : 'JPEG'
+              this.doc.addImage(base64, format, pX, this.currentY, photoW, photoH)
+              this.doc.setDrawColor(200, 200, 200)
+              this.doc.setLineWidth(0.2)
+              this.doc.rect(pX, this.currentY, photoW, photoH)
+              pX += photoW + gap
+              pCount++
+            }
+          } catch (e) {
+            // Skip failed photos
+          }
+        }
+        if (pCount > 0) {
+          this.currentY += photoH + 5
+        }
+      }
+
       // Cash-flow net du bien (si loye et credit)
       if (loyerMensuel > 0 && creditsAssocies.length > 0) {
         const totalMens = creditsAssocies.reduce((s: number, c: any) => s + Number(c.mensualite || c.montantMensuel || 0), 0)
@@ -928,7 +976,7 @@ class PDFGeneratorPro {
         this.doc.line(cardX + 10, this.currentY, this.pageWidth - this.margin - 10, this.currentY)
         this.currentY += 8
       }
-    })
+    }
   }
 
   private getCreditCardHeight(credit: any): number {
@@ -1561,7 +1609,7 @@ class PDFGeneratorPro {
     await safeAsync('Page de garde', () => this.generateCoverPage(projet))
 
     // Phase 2: Sections de contenu
-    safe('Porteurs', () => this.generatePorteurs(projet))
+    await safeAsync('Porteurs', () => this.generatePorteurs(projet))
     safe('Localisation', () => this.generateLocalisation(projet))
     safe('Bien et projet', () => this.generateBienProjet(projet))
     safe('Financement', () => this.generateFinancement(projet))

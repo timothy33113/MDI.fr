@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Users, Building2, Home, CreditCard, User, Briefcase, FileText, Wallet, Check, X, Search, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Users, Building2, Home, CreditCard, User, Briefcase, FileText, Wallet, Check, X, Search, Loader2, Camera } from 'lucide-react'
 import { TypeStructure } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -28,6 +28,7 @@ interface BienImmobilier {
   valeurEstimee: number
   loyerMensuel?: number
   statut?: 'En_location' | 'Vacant' | 'En_travaux'
+  photos?: string[]
 }
 
 interface Credit {
@@ -959,6 +960,62 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
     setBiens(biens.map(b => b.id === id ? { ...b, [field]: value } : b))
   }
 
+  // Compresser une image (max 800px, JPEG 0.6 - plus petit pour JSONB)
+  const compressImage = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(blob)
+      img.onload = () => {
+        const MAX = 800
+        let w = img.width
+        let h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        const compressed = canvas.toDataURL('image/jpeg', 0.6)
+        URL.revokeObjectURL(objectUrl)
+        resolve(compressed)
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error('Format non supporte'))
+      }
+      img.src = objectUrl
+    })
+  }
+
+  const handleBienPhotoUpload = async (bienId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue
+      if (file.size > 15 * 1024 * 1024) continue
+      try {
+        const compressed = await compressImage(file)
+        setBiens(prev => prev.map(b => b.id === bienId
+          ? { ...b, photos: [...(b.photos || []), compressed] }
+          : b
+        ))
+      } catch (err) {
+        console.error('Erreur compression photo bien:', err)
+      }
+    }
+    e.target.value = ''
+  }
+
+  const removeBienPhoto = (bienId: string, photoIndex: number) => {
+    setBiens(prev => prev.map(b => b.id === bienId
+      ? { ...b, photos: (b.photos || []).filter((_, i) => i !== photoIndex) }
+      : b
+    ))
+  }
+
   // === CRÉDITS ===
   const addCredit = () => {
     const newId = Date.now().toString()
@@ -1626,6 +1683,64 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                 </div>
                               </td>
                             </tr>
+                            {/* Photos du bien */}
+                            {isEditing && (
+                              <tr>
+                                <td colSpan={7} className="px-4 py-3 bg-green-50 border-b border-gray-200">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Camera className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium text-gray-700">Photos du bien</span>
+                                    <label className="cursor-pointer text-sm text-purple-600 hover:text-purple-800 font-medium ml-2">
+                                      + Ajouter
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => handleBienPhotoUpload(bien.id, e)}
+                                      />
+                                    </label>
+                                  </div>
+                                  {(bien.photos && bien.photos.length > 0) ? (
+                                    <div className="flex gap-2 flex-wrap">
+                                      {bien.photos.map((photo, pIdx) => (
+                                        <div key={pIdx} className="relative group">
+                                          <img
+                                            src={photo}
+                                            alt={`Photo ${pIdx + 1}`}
+                                            className="h-16 w-20 object-cover rounded border border-gray-300"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => removeBienPhoto(bien.id, pIdx)}
+                                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-400">Aucune photo. Les photos seront affichees dans le PDF.</p>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            {/* Miniatures photos en mode lecture */}
+                            {!isEditing && bien.photos && bien.photos.length > 0 && (
+                              <tr>
+                                <td colSpan={7} className="px-4 py-2 border-b border-gray-200">
+                                  <div className="flex gap-1.5">
+                                    {bien.photos.slice(0, 4).map((photo, pIdx) => (
+                                      <img key={pIdx} src={photo} alt="" className="h-10 w-12 object-cover rounded border border-gray-200" />
+                                    ))}
+                                    {bien.photos.length > 4 && (
+                                      <span className="text-xs text-gray-400 self-center">+{bien.photos.length - 4}</span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           </React.Fragment>
                         )
                       })}
