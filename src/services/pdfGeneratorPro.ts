@@ -999,14 +999,17 @@ class PDFGeneratorPro {
         this.doc.text('PHOTOS', col1X, this.currentY)
         this.currentY += 5
 
-        const photoW = 35
-        const photoH = 25
-        const gap = 3
+        // Photos grandes si pas de lots (maison/appart), petites si immeuble avec lots
+        const hasLots = lots.length > 0
+        const photoW = hasLots ? 35 : 55
+        const photoH = hasLots ? 25 : 40
+        const maxPhotos = hasLots ? 6 : 3
+        const gap = 4
         const maxPerRow = Math.floor((cardW - 16) / (photoW + gap))
         let pX = cardX + 8
         let pCount = 0
 
-        for (const photoSrc of photos.slice(0, 6)) {
+        for (const photoSrc of photos.slice(0, maxPhotos)) {
           try {
             const base64 = photoSrc.startsWith('data:')
               ? photoSrc
