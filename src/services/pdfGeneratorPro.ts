@@ -836,6 +836,87 @@ class PDFGeneratorPro {
 
       this.currentY = Math.max(descY, chifY) + 3
 
+      // Lots / composition du bien (immeubles)
+      const lots: any[] = bien.lots || []
+      if (lots.length > 0) {
+        this.checkPageBreak(20 + lots.length * 6)
+
+        this.doc.setFontSize(8)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.primaryLight)
+        this.doc.text('COMPOSITION DU BIEN', col1X, this.currentY)
+        this.currentY += 5
+
+        // En-tete tableau
+        const tX = cardX + 5
+        const tW = cardW - 10
+        const cols = [
+          { label: 'Type', x: tX + 2, w: tW * 0.22 },
+          { label: 'Designation', x: tX + tW * 0.22, w: tW * 0.28 },
+          { label: 'Surface', x: tX + tW * 0.50, w: tW * 0.15, align: 'right' as const },
+          { label: 'Loyer', x: tX + tW * 0.65, w: tW * 0.18, align: 'right' as const },
+          { label: 'Statut', x: tX + tW * 0.83, w: tW * 0.17, align: 'center' as const },
+        ]
+
+        this.doc.setFillColor(240, 242, 245)
+        this.doc.rect(tX, this.currentY - 3, tW, 7, 'F')
+        this.doc.setFontSize(7)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.text)
+        cols.forEach(c => {
+          const align = c.align || 'left'
+          const xPos = align === 'right' ? c.x + c.w - 2 : align === 'center' ? c.x + c.w / 2 : c.x
+          this.doc.text(c.label, xPos, this.currentY, { align })
+        })
+        this.currentY += 6
+
+        // Lignes
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setFontSize(8)
+        let totalSurf = 0
+        let totalLoyer = 0
+        let nbLoues = 0
+
+        lots.forEach((lot: any) => {
+          this.checkPageBreak(7)
+          const lotType = (lot.type || 'Autre').replace(/_/g, ' ')
+          const desig = lot.designation || ''
+          const surf = Number(lot.superficie || 0)
+          const loyer = Number(lot.loyerMensuel || 0)
+          const statut = lot.statut === 'Loue' ? 'Loue' : 'Vacant'
+
+          totalSurf += surf
+          totalLoyer += loyer
+          if (lot.statut === 'Loue') nbLoues++
+
+          this.doc.setTextColor(...this.colors.text)
+          this.doc.text(lotType, cols[0].x, this.currentY)
+          this.doc.text(desig, cols[1].x, this.currentY)
+          this.doc.text(surf > 0 ? `${surf} m2` : '-', cols[2].x + cols[2].w - 2, this.currentY, { align: 'right' })
+          this.doc.text(loyer > 0 ? `${this.fmt(loyer)} EUR` : '-', cols[3].x + cols[3].w - 2, this.currentY, { align: 'right' })
+
+          const statutColor: [number, number, number] = statut === 'Loue' ? [46, 125, 50] : [220, 120, 50]
+          this.doc.setTextColor(...statutColor)
+          this.doc.text(statut, cols[4].x + cols[4].w / 2, this.currentY, { align: 'center' })
+          this.currentY += 5.5
+        })
+
+        // Ligne total
+        this.doc.setDrawColor(...this.colors.bgMedium)
+        this.doc.setLineWidth(0.5)
+        this.doc.line(tX, this.currentY - 1, tX + tW, this.currentY - 1)
+        this.currentY += 2
+
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.setTextColor(...this.colors.primary)
+        this.doc.setFontSize(8)
+        this.doc.text(`Total (${lots.length} lots)`, cols[0].x, this.currentY)
+        this.doc.text(totalSurf > 0 ? `${totalSurf} m2` : '', cols[2].x + cols[2].w - 2, this.currentY, { align: 'right' })
+        this.doc.text(`${this.fmt(totalLoyer)} EUR`, cols[3].x + cols[3].w - 2, this.currentY, { align: 'right' })
+        this.doc.text(`${nbLoues}/${lots.length}`, cols[4].x + cols[4].w / 2, this.currentY, { align: 'center' })
+        this.currentY += 8
+      }
+
       // Credit(s) associe(s)
       if (creditsAssocies.length > 0) {
         this.checkPageBreak(20)

@@ -21,6 +21,15 @@ interface Associe {
   pourcentageParts: number
 }
 
+interface LotBien {
+  id: string
+  type: 'Appartement' | 'Studio' | 'Parking' | 'Cave' | 'Local_Commercial' | 'Garage' | 'Autre'
+  designation: string
+  superficie?: number
+  loyerMensuel?: number
+  statut: 'Loue' | 'Vacant'
+}
+
 interface BienImmobilier {
   id: string
   type: 'Residence_Principale' | 'Residence_Secondaire' | 'Investissement_Locatif'
@@ -29,6 +38,7 @@ interface BienImmobilier {
   loyerMensuel?: number
   statut?: 'En_location' | 'Vacant' | 'En_travaux'
   photos?: string[]
+  lots?: LotBien[]
 }
 
 interface Credit {
@@ -1726,16 +1736,167 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                 </td>
                               </tr>
                             )}
-                            {/* Miniatures photos en mode lecture */}
-                            {!isEditing && bien.photos && bien.photos.length > 0 && (
+                            {/* Lots / composition du bien (mode edition) */}
+                            {isEditing && (
+                              <tr>
+                                <td colSpan={7} className="px-4 py-3 bg-green-50 border-b border-gray-200">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Home className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium text-gray-700">Composition du bien (lots)</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newLot: LotBien = {
+                                          id: Date.now().toString(),
+                                          type: 'Appartement',
+                                          designation: '',
+                                          statut: 'Loue'
+                                        }
+                                        updateBien(bien.id, 'lots', [...(bien.lots || []), newLot])
+                                      }}
+                                      className="text-sm text-purple-600 hover:text-purple-800 font-medium ml-2"
+                                    >
+                                      + Ajouter un lot
+                                    </button>
+                                  </div>
+                                  {(bien.lots && bien.lots.length > 0) ? (
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-gray-300">
+                                          <th className="text-left py-1 px-2 text-xs font-semibold text-gray-600">Type</th>
+                                          <th className="text-left py-1 px-2 text-xs font-semibold text-gray-600">Designation</th>
+                                          <th className="text-right py-1 px-2 text-xs font-semibold text-gray-600">Surface m2</th>
+                                          <th className="text-right py-1 px-2 text-xs font-semibold text-gray-600">Loyer</th>
+                                          <th className="text-center py-1 px-2 text-xs font-semibold text-gray-600">Statut</th>
+                                          <th className="w-8"></th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {bien.lots.map((lot) => (
+                                          <tr key={lot.id} className="border-b border-gray-200">
+                                            <td className="py-1 px-2">
+                                              <select
+                                                value={lot.type}
+                                                onChange={(e) => {
+                                                  const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, type: e.target.value } : l)
+                                                  updateBien(bien.id, 'lots', updated)
+                                                }}
+                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                              >
+                                                <option value="Appartement">Appartement</option>
+                                                <option value="Studio">Studio</option>
+                                                <option value="Parking">Parking</option>
+                                                <option value="Cave">Cave</option>
+                                                <option value="Local_Commercial">Local commercial</option>
+                                                <option value="Garage">Garage</option>
+                                                <option value="Autre">Autre</option>
+                                              </select>
+                                            </td>
+                                            <td className="py-1 px-2">
+                                              <input
+                                                type="text"
+                                                value={lot.designation}
+                                                onChange={(e) => {
+                                                  const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, designation: e.target.value } : l)
+                                                  updateBien(bien.id, 'lots', updated)
+                                                }}
+                                                placeholder="Ex: T3 RDC"
+                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                              />
+                                            </td>
+                                            <td className="py-1 px-2">
+                                              <input
+                                                type="number"
+                                                value={lot.superficie || ''}
+                                                onChange={(e) => {
+                                                  const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, superficie: Number(e.target.value) || 0 } : l)
+                                                  updateBien(bien.id, 'lots', updated)
+                                                }}
+                                                placeholder="0"
+                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                                              />
+                                            </td>
+                                            <td className="py-1 px-2">
+                                              <input
+                                                type="number"
+                                                value={lot.loyerMensuel || ''}
+                                                onChange={(e) => {
+                                                  const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, loyerMensuel: Number(e.target.value) || 0 } : l)
+                                                  updateBien(bien.id, 'lots', updated)
+                                                }}
+                                                placeholder="0"
+                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                                              />
+                                            </td>
+                                            <td className="py-1 px-2 text-center">
+                                              <select
+                                                value={lot.statut}
+                                                onChange={(e) => {
+                                                  const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, statut: e.target.value } : l)
+                                                  updateBien(bien.id, 'lots', updated)
+                                                }}
+                                                className="px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                              >
+                                                <option value="Loue">Loue</option>
+                                                <option value="Vacant">Vacant</option>
+                                              </select>
+                                            </td>
+                                            <td className="py-1 px-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  updateBien(bien.id, 'lots', (bien.lots || []).filter(l => l.id !== lot.id))
+                                                }}
+                                                className="text-red-500 hover:text-red-700"
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                        {/* Ligne total */}
+                                        <tr className="border-t-2 border-gray-400 font-semibold">
+                                          <td className="py-1 px-2 text-xs text-gray-700" colSpan={2}>
+                                            Total ({bien.lots.length} lots)
+                                          </td>
+                                          <td className="py-1 px-2 text-xs text-right text-gray-700">
+                                            {bien.lots.reduce((s, l) => s + (l.superficie || 0), 0)} m2
+                                          </td>
+                                          <td className="py-1 px-2 text-xs text-right text-blue-700">
+                                            {bien.lots.reduce((s, l) => s + (l.loyerMensuel || 0), 0).toLocaleString('fr-FR')} EUR
+                                          </td>
+                                          <td className="py-1 px-2 text-xs text-center text-gray-500">
+                                            {bien.lots.filter(l => l.statut === 'Loue').length}/{bien.lots.length} loues
+                                          </td>
+                                          <td></td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  ) : (
+                                    <p className="text-xs text-gray-400">Pas de lots. Utile pour les immeubles avec plusieurs appartements.</p>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            {/* Resume lots + miniatures photos en mode lecture */}
+                            {!isEditing && ((bien.photos && bien.photos.length > 0) || (bien.lots && bien.lots.length > 0)) && (
                               <tr>
                                 <td colSpan={7} className="px-4 py-2 border-b border-gray-200">
-                                  <div className="flex gap-1.5">
-                                    {bien.photos.slice(0, 4).map((photo, pIdx) => (
-                                      <img key={pIdx} src={photo} alt="" className="h-10 w-12 object-cover rounded border border-gray-200" />
-                                    ))}
-                                    {bien.photos.length > 4 && (
-                                      <span className="text-xs text-gray-400 self-center">+{bien.photos.length - 4}</span>
+                                  <div className="flex items-center gap-4">
+                                    {bien.photos && bien.photos.length > 0 && (
+                                      <div className="flex gap-1.5">
+                                        {bien.photos.slice(0, 3).map((photo, pIdx) => (
+                                          <img key={pIdx} src={photo} alt="" className="h-10 w-12 object-cover rounded border border-gray-200" />
+                                        ))}
+                                        {bien.photos.length > 3 && (
+                                          <span className="text-xs text-gray-400 self-center">+{bien.photos.length - 3}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {bien.lots && bien.lots.length > 0 && (
+                                      <span className="text-xs text-gray-500">
+                                        {bien.lots.length} lots - {bien.lots.reduce((s, l) => s + (l.loyerMensuel || 0), 0).toLocaleString('fr-FR')} EUR/mois - {bien.lots.filter(l => l.statut === 'Loue').length}/{bien.lots.length} loues
+                                      </span>
                                     )}
                                   </div>
                                 </td>
