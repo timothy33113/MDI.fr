@@ -742,7 +742,8 @@ class PDFGeneratorPro {
   private async renderBiensDetailles(biens: any[], allCredits: any[], proprietaire: string): Promise<void> {
     for (let bIdx = 0; bIdx < biens.length; bIdx++) {
       const bien = biens[bIdx]
-      this.checkPageBreak(55)
+      // Chaque bien sur une nouvelle page
+      this.addPage()
 
       const adresse = bien.adresse || 'Adresse non renseignee'
       const typeBien = (bien.type || 'Bien').replace(/_/g, ' ')
@@ -1049,14 +1050,6 @@ class PDFGeneratorPro {
       }
 
       this.currentY += 5
-
-      // Separateur entre biens
-      if (bIdx < biens.length - 1) {
-        this.doc.setDrawColor(220, 220, 220)
-        this.doc.setLineWidth(0.3)
-        this.doc.line(cardX + 10, this.currentY, this.pageWidth - this.margin - 10, this.currentY)
-        this.currentY += 8
-      }
     }
   }
 
