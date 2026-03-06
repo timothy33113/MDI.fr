@@ -586,7 +586,7 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-coral-200 via-honey-200 to-honey-100 hover:from-coral-300 hover:via-honey-300 hover:to-honey-200 text-gray-900 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md"
             >
               <Plus className="h-4 w-4" />
-              Créer
+              Ajouter
             </button>
           </div>
 
@@ -598,7 +598,7 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
               <div className="mx-auto w-12 h-12 rounded-full bg-honey-100 flex items-center justify-center mb-4">
                 <Building2 className="h-6 w-6 text-honey-600" />
               </div>
-              <p className="text-sm font-medium text-gray-900">Créer une société</p>
+              <p className="text-sm font-medium text-gray-900">Ajouter une société</p>
               <p className="text-xs text-gray-500 mt-1">SCI, SARL, SASU et autres structures juridiques</p>
             </div>
           ) : (
@@ -705,8 +705,8 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
       <Modal
         isOpen={showSocieteModal}
         onClose={handleCloseSocieteModal}
-        title={editingSocieteId ? 'Modifier une société' : 'Créer une société'}
-        size="large"
+        title={editingSocieteId ? 'Modifier une société' : 'Ajouter une société'}
+        size="xlarge"
         closeOnBackdropClick={true}
       >
         <SocieteFormV2

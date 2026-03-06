@@ -2615,8 +2615,8 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
     <Modal
       isOpen={showSocieteModal}
       onClose={() => setShowSocieteModal(false)}
-      title="Créer une société"
-      size="large"
+      title="Ajouter une société"
+      size="xlarge"
       closeOnBackdropClick={false}
     >
       <SocieteFormV2

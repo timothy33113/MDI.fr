@@ -1467,13 +1467,13 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                           className="whitespace-nowrap"
                         >
                           <Plus className="h-4 w-4 mr-2" />
-                          Créer
+                          Ajouter
                         </Button>
                       )}
                     </div>
                     {personnesPhysiques.length === 0 && isEditing && (
                       <p className="text-xs text-orange-600 mt-1">
-                        💡 Cliquez sur "Créer" pour ajouter un nouvel associé
+                        Cliquez sur "Ajouter" pour ajouter un nouvel associé
                       </p>
                     )}
                   </div>
