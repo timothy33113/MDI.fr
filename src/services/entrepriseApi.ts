@@ -591,9 +591,14 @@ export function createStructureFromDirigeantPP(dirigeant: any) {
   const dateNormalisee = normalizeDateNaissance(dirigeant.date_de_naissance || '')
   console.log('  ✅ Date normalisée:', dateNormalisee)
 
+  const prenomFormate = (dirigeant.prenoms || '').split(/[\s,]+/)[0]
+  const nomComplet = prenomFormate
+    ? `${prenomFormate.charAt(0).toUpperCase()}${prenomFormate.slice(1).toLowerCase()} ${(dirigeant.nom || '').toUpperCase()}`
+    : (dirigeant.nom || '').toUpperCase()
+
   return {
     type: 'PERSONNE_PHYSIQUE',
-    nom: dirigeant.nom || '',
+    nom: nomComplet,
     adresse: 'Non renseignée',
     telephone: '',
     email: '',
