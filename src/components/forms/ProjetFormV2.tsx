@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument } from '@/types'
+import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument, BienImmobilier } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 import api from '@/services/api'
-import { useToast } from '@/contexts/ToastContext'
 import SortablePhotoGrid from '@/components/ui/SortablePhotoGrid'
 
 interface ProjetFormV2Props {
   structures: Structure[]
-  onSubmit: (data: CreateProjetForm) => void
+  onSubmit: (data: CreateProjetForm) => void | Promise<any>
   onCancel?: () => void
   onGeneratePDF?: () => void
   initialProjet?: Projet | null
@@ -38,7 +37,6 @@ interface Travaux {
 
 const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCancel, onGeneratePDF, initialProjet }) => {
   const [activeTab, setActiveTab] = useState<TabType>('general')
-  const toast = useToast()
 
   // Onglet 1: Informations générales
   const [nom, setNom] = useState(initialProjet?.nom || '')
@@ -656,7 +654,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     return null
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     console.log('🚀 handleSubmit appelé - Début de l\'enregistrement du projet')
@@ -693,7 +691,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         adresse: adresse || '',
         codePostal: codePostal || '',
         ville: ville || '',
-        type: typeBien || bienPrincipal?.type || 'Appartement',
+        type: (typeBien || bienPrincipal?.type || 'Appartement') as BienImmobilier['type'],
         superficie: elementsBien.reduce((sum, e) => sum + e.superficie, 0),
         nombrePieces: elementsBien.reduce((sum, e) => sum + (e.nombrePieces || 0), 0),
         etatActuel: bienPrincipal?.etat || 'Bon',
@@ -729,9 +727,12 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
     console.log('📦 Données du projet à enregistrer:', data)
     console.log('🔄 Appel de onSubmit...')
-    onSubmit(data)
-    toast.success('Projet enregistré avec succès')
-    console.log('✅ onSubmit appelé avec succès')
+    try {
+      await onSubmit(data)
+      console.log('✅ onSubmit appelé avec succès')
+    } catch (err) {
+      console.error('❌ Erreur onSubmit:', err)
+    }
   }
 
   const tabs = [
