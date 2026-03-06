@@ -156,7 +156,7 @@ const ProjetsDashboard: React.FC = () => {
             <p className="text-xs text-gray-500 mt-1">Analysez la rentabilité de vos investissements</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200/60 overflow-visible">
             {/* En-têtes */}
             <div className="hidden sm:grid sm:grid-cols-[1fr_100px_120px_120px_48px] gap-4 px-6 py-3 border-b border-gray-100 text-xs font-medium text-gray-400 uppercase tracking-wider">
               <span>Projet</span>
