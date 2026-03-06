@@ -791,53 +791,9 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
 
     console.log(`\n📊 FIN ÉTAPE 1-2: ${nouveauxAssocies.length} entreprises, ${relationsDetentionToCreate.length} relations prêtes`)
 
-    // ÉTAPE 3: Créer les relations de détention (dirigeants → entreprises)
-    console.log(`\n🔗 ÉTAPE 3: Création de ${relationsDetentionToCreate.length} relation(s) de détention`)
-    console.log(`📋 Relations à créer:`, relationsDetentionToCreate)
+    // ÉTAPE 3: Grouper les relations par entreprise et mettre à jour detenteurs + associés
+    console.log(`\n🔗 ÉTAPE 3: Mise à jour des ${relationsDetentionToCreate.length} relation(s) de détention`)
 
-    if (relationsDetentionToCreate.length === 0) {
-      console.warn(`⚠️ AUCUNE relation de détention à créer! Vérifier ÉTAPE 2`)
-    }
-
-    for (const relation of relationsDetentionToCreate) {
-      try {
-        console.log(`  📊 Création détenteur API: dirigeant ${relation.dirigeantId} → entreprise ${relation.entrepriseId}`)
-
-        const url = `/api/structures/${relation.entrepriseId}/detenteurs`
-        const payload = {
-          porteurId: relation.dirigeantId,
-          pourcentage: 0
-        }
-        console.log(`  🌐 POST ${url}`, payload)
-
-        // Appeler l'API pour créer la relation de détention
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(payload)
-        })
-
-        console.log(`  📡 Response status: ${response.status}`)
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error(`  ❌ Erreur création détenteur (${response.status}):`, errorData)
-        } else {
-          const responseData = await response.json()
-          console.log(`  ✅ Détenteur créé avec succès:`, responseData)
-        }
-      } catch (error) {
-        console.error(`  ❌ Exception lors de la création du détenteur:`, error)
-      }
-    }
-
-    // ÉTAPE 3.5: Mettre à jour chaque entreprise importée avec ses dirigeants comme associés
-    console.log(`\n👥 Mise à jour des entreprises importées avec leurs dirigeants comme associés`)
-
-    // Grouper les relations par entreprise
     const relationsByEntreprise = new Map<string, Array<{ dirigeantId: string; qualite: string }>>()
     for (const relation of relationsDetentionToCreate) {
       if (!relationsByEntreprise.has(relation.entrepriseId)) {
@@ -849,11 +805,11 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
       })
     }
 
-    // Rafraîchir UNE SEULE FOIS et utiliser le retour direct (pas la closure stale)
+    // Rafraîchir les structures pour avoir les données fraîches
     const freshStructures = await refreshStructures()
     console.log(`  📦 Structures fraîches: ${freshStructures.length}`)
 
-    // Pour chaque entreprise, créer et sauvegarder ses associés
+    // Pour chaque entreprise, mettre à jour detenteurs ET associés via PUT
     for (const [entrepriseId, dirigeants] of relationsByEntreprise.entries()) {
       const entreprise = freshStructures.find(s => s.id === entrepriseId)
       if (!entreprise || !entreprise.personneMorale) {
@@ -861,15 +817,23 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
         continue
       }
 
-      console.log(`  📝 Mise à jour de ${entreprise.nom} avec ${dirigeants.length} associé(s)`)
+      console.log(`  📝 Mise à jour de ${entreprise.nom} avec ${dirigeants.length} dirigeant(s)`)
 
-      // Créer les associés pour cette entreprise
+      // Construire les detenteurs (pour l'organigramme)
+      const existingDetenteurs = entreprise.detenteurs || []
+      const newDetenteurs = dirigeants
+        .filter(({ dirigeantId }) => !existingDetenteurs.some((d: any) => d.porteurId === dirigeantId))
+        .map(({ dirigeantId }) => ({
+          porteurId: dirigeantId,
+          pourcentage: 0
+        }))
+      const allDetenteurs = [...existingDetenteurs, ...newDetenteurs]
+
+      // Construire les associés (pour la fiche société)
       const associesEntreprise: Associe[] = dirigeants.map(({ dirigeantId, qualite }) => {
         const structureDirigeant = freshStructures.find(s => s.id === dirigeantId)
         if (!structureDirigeant) return null
-
         const isDirigeantPP = structureDirigeant.type === 'PERSONNE_PHYSIQUE'
-
         return {
           id: `associe-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           type: isDirigeantPP ? 'PP' as const : 'PM' as const,
@@ -881,10 +845,10 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
         }
       }).filter(Boolean) as Associe[]
 
-      // Mettre à jour l'entreprise avec ses associés
       try {
         const updateData = {
           ...entreprise,
+          detenteurs: allDetenteurs,
           personneMorale: {
             ...entreprise.personneMorale,
             associes: associesEntreprise
@@ -904,12 +868,15 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           const errorData = await response.json()
           console.error(`  ❌ Erreur mise à jour ${entreprise.nom}:`, errorData)
         } else {
-          console.log(`  ✅ ${entreprise.nom} mise à jour avec ${associesEntreprise.length} associé(s)`)
+          console.log(`  ✅ ${entreprise.nom} mise à jour: ${allDetenteurs.length} détenteur(s), ${associesEntreprise.length} associé(s)`)
         }
       } catch (error) {
         console.error(`  ❌ Erreur lors de la mise à jour de ${entreprise.nom}:`, error)
       }
     }
+
+    // Rafraîchir une dernière fois pour que l'organigramme ait les detenteurs
+    await refreshStructures()
 
     // ÉTAPE 4: Créer les associés pour chaque dirigeant des entreprises importées
     // Ces dirigeants deviennent aussi des associés directs de la société en cours de création/édition
