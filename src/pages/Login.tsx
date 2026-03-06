@@ -18,7 +18,7 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/')
+      navigate('/', { replace: true })
     }
   }, [isAuthenticated, navigate])
 
@@ -29,6 +29,8 @@ const Login: React.FC = () => {
 
     try {
       await login({ email, password })
+      // Navigation directe après login réussi
+      navigate('/', { replace: true })
     } catch (err) {
       setError('Email ou mot de passe incorrect')
     } finally {

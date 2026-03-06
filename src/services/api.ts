@@ -26,10 +26,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !import.meta.env.DEV) {
-      // Token expiré ou invalide (skip in dev mode)
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Ne pas intercepter les 401 des endpoints d'auth (login/register)
+      const url = error.config?.url || '';
+      if (!url.includes('/auth')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
