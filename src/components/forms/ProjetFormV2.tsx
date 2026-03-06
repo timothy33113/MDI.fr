@@ -6,6 +6,7 @@ import Input from '@/components/ui/Input'
 import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 import api from '@/services/api'
 import SortablePhotoGrid from '@/components/ui/SortablePhotoGrid'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 
 interface ProjetFormV2Props {
   structures: Structure[]
@@ -870,11 +871,15 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
             <div className="border-t pt-4">
               <h3 className="text-xl font-semibold mb-4">Adresse du bien</h3>
 
-              <Input
+              <AddressAutocomplete
                 label="Adresse"
                 value={adresse}
-                onChange={(e) => setAdresse(e.target.value)}
-                placeholder="Numéro et nom de rue"
+                onChange={(val) => setAdresse(val)}
+                onSelect={(result) => {
+                  if (result.postcode) setCodePostal(result.postcode)
+                  if (result.city) setVille(result.city)
+                }}
+                placeholder="Rechercher une adresse..."
               />
 
               <div className="grid grid-cols-2 gap-4 mt-4">
