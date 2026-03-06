@@ -289,7 +289,6 @@ export function mapFormeJuridiqueToType(formeJuridique: string): TypeStructure {
     // SARL
     '5498': 'SARL', // SARL nationale
     '5499': 'SARL', // SARL coopérative
-    '5505': 'SARL', // SARL d'économie mixte
     // SAS
     '5710': 'SAS', // SAS, société par actions simplifiée
     '5785': 'SAS', // Société d'exercice libéral par actions simplifiée
@@ -302,10 +301,8 @@ export function mapFormeJuridiqueToType(formeJuridique: string): TypeStructure {
     // SNC
     '5202': 'SNC', // Société en nom collectif
     '5203': 'SNC', // Société en nom collectif coopérative
-    // Auto-entrepreneur / Micro-entreprise
+    // Auto-entrepreneur / Micro-entreprise / Entreprise individuelle
     '1000': 'MICRO_ENTREPRISE',
-    // Entreprise individuelle
-    '1000': 'ENTREPRISE_INDIVIDUELLE',
   }
 
   // Si c'est un code numérique, le mapper directement
