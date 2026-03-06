@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
-import { Plus, Trash2, Users, Building2, Home, CreditCard, User, Briefcase, FileText, Wallet, Check, X, Search, Loader2, Pencil } from 'lucide-react'
+import { Plus, Trash2, Users, Building2, Home, CreditCard, User, FileText, Check, X, Pencil } from 'lucide-react'
 import BienPhotoUpload from '@/components/ui/BienPhotoUpload'
 import { TypeStructure } from '@/types'
 import Button from '@/components/ui/Button'
@@ -67,7 +67,7 @@ interface SocieteFormV2Props {
 }
 
 const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCancel, personneEnCreation }) => {
-  const [activeSection, setActiveSection] = useState<'generale' | 'juridique' | 'associes' | 'patrimoine'>('generale')
+  const [activeSection, setActiveSection] = useState<'generale' | 'associes' | 'patrimoine'>('generale')
   const [type, setType] = useState<TypeStructure>('SCI')
   const { structures, addStructure, refreshStructures, getStructureById } = useStructures()
   const toast = useToast()
@@ -1149,7 +1149,6 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
 
   const sections = [
     { id: 'generale' as const, label: 'Infos générales', icon: FileText },
-    { id: 'juridique' as const, label: 'Infos juridiques', icon: Briefcase },
     { id: 'associes' as const, label: 'Associés', icon: Users },
     { id: 'patrimoine' as const, label: 'Patrimoine', icon: Home }
   ]
@@ -1237,41 +1236,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
               placeholder="123 Rue de Paris, 75001 Paris"
             />
 
-            {/* Téléphone, Email, Banque - grille 3 colonnes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Input
-                label="Téléphone"
-                type="tel"
-                value={formData.telephone}
-                onChange={(e) => handleChange('telephone', e.target.value)}
-                placeholder="01 23 45 67 89"
-              />
-              <Input
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="contact@sci.fr"
-              />
-              <Input
-                label="Banque principale"
-                value={formData.banquePrincipale}
-                onChange={(e) => handleChange('banquePrincipale', e.target.value)}
-                placeholder="Crédit Agricole..."
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Informations juridiques */}
-        {activeSection === 'juridique' && (
-          <div className="space-y-5">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Informations juridiques</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Renseignements légaux et administratifs</p>
-            </div>
-
-            {/* SIRET, SIREN, Date création - grille 3 colonnes */}
+            {/* SIRET, Capital social, Date de création - grille 3 colonnes */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Input
                 label="SIRET"
@@ -1281,23 +1246,6 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                 placeholder="12345678901234"
               />
               <Input
-                label="SIREN"
-                value={formData.siren}
-                onChange={(e) => handleChange('siren', e.target.value)}
-                maxLength={9}
-                placeholder="123456789"
-              />
-              <Input
-                label="Date de création"
-                type="date"
-                value={formData.dateCreation}
-                onChange={(e) => handleChange('dateCreation', e.target.value)}
-              />
-            </div>
-
-            {/* Capital, CA, Résultat net - grille 3 colonnes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Input
                 label="Capital social (€)"
                 type="number"
                 value={formData.capitalSocial || ''}
@@ -1305,52 +1253,11 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                 placeholder="1000"
               />
               <Input
-                label="CA annuel (€)"
-                type="number"
-                min="0"
-                value={formData.chiffreAffairesAnnuel || ''}
-                onChange={(e) => handleChange('chiffreAffairesAnnuel', Number(e.target.value) || 0)}
-                placeholder="0"
+                label="Date de création"
+                type="date"
+                value={formData.dateCreation}
+                onChange={(e) => handleChange('dateCreation', e.target.value)}
               />
-              <Input
-                label="Résultat net (€)"
-                type="number"
-                value={formData.resultatNet || ''}
-                onChange={(e) => handleChange('resultatNet', Number(e.target.value) || 0)}
-                placeholder="0"
-              />
-            </div>
-
-            {/* Représentant légal - sous-titre + grille 3 colonnes */}
-            <div className="pt-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Représentant légal</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Input
-                  label="Prénom"
-                  value={formData.representantLegalPrenom}
-                  onChange={(e) => handleChange('representantLegalPrenom', e.target.value)}
-                  placeholder="Prénom"
-                />
-                <Input
-                  label="Nom"
-                  value={formData.representantLegalNom}
-                  onChange={(e) => handleChange('representantLegalNom', e.target.value)}
-                  placeholder="Nom"
-                />
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fonction</label>
-                  <select
-                    value={formData.representantLegalFonction}
-                    onChange={(e) => handleChange('representantLegalFonction', e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900/10 focus:outline-none"
-                  >
-                    <option value="Gerant">Gérant</option>
-                    <option value="President">Président</option>
-                    <option value="Directeur_General">Directeur Général</option>
-                    <option value="Autre">Autre</option>
-                  </select>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -1920,9 +1827,9 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                   e.preventDefault()
                   addBien()
                 }}
-                className="w-full py-3 px-6 bg-gray-900 hover:bg-gray-800 text-white border-2 border-gray-900 rounded-xl font-semibold transition-all duration-200 hover:shadow-md flex items-center justify-center gap-2 mt-6"
+                className="w-full py-3 border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-2 mt-6"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
                 Ajouter un bien
               </button>
             </div>
@@ -2127,9 +2034,9 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                   e.preventDefault()
                   addCredit()
                 }}
-                className="w-full py-3 px-6 bg-gray-900 hover:bg-gray-800 text-white border-2 border-gray-900 rounded-xl font-semibold transition-all duration-200 hover:shadow-md flex items-center justify-center gap-2 mt-6"
+                className="w-full py-3 border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-2 mt-6"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
                 Ajouter un crédit
               </button>
             </div>
