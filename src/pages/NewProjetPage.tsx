@@ -19,9 +19,9 @@ const NewProjetPage: React.FC = () => {
       console.log('✅ Projet créé avec succès:', newProjet);
       // Redirect to the new project's analysis page
       navigate(`/projets/${newProjet.id}/analyse`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur lors de la création du projet:', error);
-      alert('Erreur lors de la création du projet. Veuillez réessayer.');
+      alert(error?.message || 'Erreur lors de la création du projet. Veuillez réessayer.');
     }
   };
 

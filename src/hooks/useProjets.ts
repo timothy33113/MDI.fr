@@ -49,7 +49,10 @@ export const useProjets = () => {
     } catch (err: any) {
       console.error('❌ Erreur dans createProjet:', err);
       console.error('❌ Response data:', err.response?.data);
-      const errorMsg = err.response?.data?.error || 'Erreur lors de la création du projet';
+      const details = err.response?.data?.details;
+      const errorMsg = details
+        ? `Données invalides: ${Array.isArray(details) ? details.join(', ') : details}`
+        : err.response?.data?.error || 'Erreur lors de la création du projet';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {

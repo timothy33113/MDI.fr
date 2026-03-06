@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { Structure, CreateStructureForm } from '@/types'
 import api from '@/services/api'
+import { useAuth } from '@/hooks/useAuth'
 
 interface StructuresContextType {
   structures: Structure[]
@@ -19,17 +20,17 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
   const [structures, setStructures] = useState<Structure[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { isAuthenticated } = useAuth()
 
-  // Charger les structures depuis l'API au montage
+  // Charger les structures quand l'utilisateur se connecte
   useEffect(() => {
-    const fetchStructures = async () => {
-      // Ne pas charger si on n'a pas de token (utilisateur non connecté)
-      const token = localStorage.getItem('token')
-      if (!token) {
-        setLoading(false)
-        return
-      }
+    if (!isAuthenticated) {
+      setStructures([])
+      setLoading(false)
+      return
+    }
 
+    const fetchStructures = async () => {
       try {
         setLoading(true)
         console.log('📡 Chargement des structures depuis l\'API...')
@@ -52,7 +53,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
     }
 
     fetchStructures()
-  }, [])
+  }, [isAuthenticated])
 
   const addStructure = useCallback(async (data: any): Promise<Structure> => {
     try {
