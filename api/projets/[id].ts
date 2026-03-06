@@ -335,7 +335,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos, photoCouverture, comparables } = validation.data;
 
-      let lastStep = '';
       // 1. Mettre a jour le projet
       lastStep = 'Step1:UPDATE projets';
       await sql`

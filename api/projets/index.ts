@@ -171,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos, photoCouverture } = validation.data;
+      const { nom, description, status, bien, financement, porteurs, elementsBien, travaux, photos, photoCouverture, comparables } = validation.data;
 
       // 1. Creer le projet
       const projetResult = await sql`
