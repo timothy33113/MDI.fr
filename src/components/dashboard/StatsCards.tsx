@@ -73,7 +73,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ structures, projets, loading = 
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse"
+            className="h-32 rounded-2xl bg-gray-200 animate-pulse"
           />
         ))}
       </div>
@@ -86,7 +86,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ structures, projets, loading = 
       value: personnesPhysiques,
       subtitle: 'Associes enregistres',
       icon: Users,
-      gradient: 'bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800',
+      gradient: 'bg-gradient-to-br from-blue-500 to-blue-700',
       iconColor: 'bg-blue-400/30'
     },
     {
@@ -94,7 +94,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ structures, projets, loading = 
       value: societes,
       subtitle: 'SCI, SARL, Holdings...',
       icon: Building2,
-      gradient: 'bg-gradient-to-br from-purple-500 to-purple-700 dark:from-purple-600 dark:to-purple-800',
+      gradient: 'bg-gradient-to-br from-purple-500 to-purple-700',
       iconColor: 'bg-purple-400/30'
     },
     {
@@ -102,7 +102,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ structures, projets, loading = 
       value: totalProjets,
       subtitle: `${projetsEnCours} en cours`,
       icon: FolderKanban,
-      gradient: 'bg-gradient-to-br from-emerald-500 to-emerald-700 dark:from-emerald-600 dark:to-emerald-800',
+      gradient: 'bg-gradient-to-br from-emerald-500 to-emerald-700',
       iconColor: 'bg-emerald-400/30'
     },
     {
@@ -110,7 +110,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ structures, projets, loading = 
       value: totalProjets > 0 ? `${Math.round((projetsTermines / totalProjets) * 100)}%` : '0%',
       subtitle: `${projetsTermines} dossier${projetsTermines > 1 ? 's' : ''} finalise${projetsTermines > 1 ? 's' : ''}`,
       icon: TrendingUp,
-      gradient: 'bg-gradient-to-br from-orange-500 to-orange-700 dark:from-orange-600 dark:to-orange-800',
+      gradient: 'bg-gradient-to-br from-orange-500 to-orange-700',
       iconColor: 'bg-orange-400/30'
     }
   ]

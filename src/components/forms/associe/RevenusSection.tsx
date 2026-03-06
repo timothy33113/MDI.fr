@@ -1,5 +1,4 @@
 import React from 'react'
-import { TrendingUp } from 'lucide-react'
 import { FormSection, EditableTable, useEditableList } from '../shared'
 import { Revenu } from '../shared/types'
 
@@ -7,6 +6,8 @@ interface RevenusSectionProps {
   revenus: Revenu[]
   onRevenusChange: (revenus: Revenu[]) => void
 }
+
+const typesAvecPeriodicite = ['prime', 'investissement', 'locatif', 'societe', 'autre']
 
 export function RevenusSection({ revenus, onRevenusChange }: RevenusSectionProps) {
   const {
@@ -25,7 +26,9 @@ export function RevenusSection({ revenus, onRevenusChange }: RevenusSectionProps
       id: Date.now().toString(),
       type: 'autre',
       libelle: '',
-      montantMensuel: 0
+      montantMensuel: 0,
+      periodicite: 'mensuel',
+      montantSaisi: 0
     }),
     getId: (item) => item.id,
     isEmpty: (item) => !item.libelle,
@@ -48,6 +51,26 @@ export function RevenusSection({ revenus, onRevenusChange }: RevenusSectionProps
 
   const totalRevenus = items.reduce((sum, r) => sum + r.montantMensuel, 0)
 
+  const handleMontantChange = (item: Revenu, value: number, onUpdate: (field: string, value: any) => void) => {
+    const periodicite = item.periodicite || 'mensuel'
+    onUpdate('montantSaisi', value)
+    if (item.type === 'salaire' || periodicite === 'mensuel') {
+      onUpdate('montantMensuel', value)
+    } else {
+      onUpdate('montantMensuel', Math.round((value / 12) * 100) / 100)
+    }
+  }
+
+  const handlePeriodiciteChange = (item: Revenu, newPeriodicite: string, onUpdate: (field: string, value: any) => void) => {
+    onUpdate('periodicite', newPeriodicite)
+    const montantSaisi = item.montantSaisi || item.montantMensuel
+    if (newPeriodicite === 'annuel') {
+      onUpdate('montantMensuel', Math.round((montantSaisi / 12) * 100) / 100)
+    } else {
+      onUpdate('montantMensuel', montantSaisi)
+    }
+  }
+
   const columns = [
     {
       key: 'type',
@@ -56,7 +79,14 @@ export function RevenusSection({ revenus, onRevenusChange }: RevenusSectionProps
         isEditing ? (
           <select
             value={item.type}
-            onChange={(e) => onUpdate('type', e.target.value)}
+            onChange={(e) => {
+              onUpdate('type', e.target.value)
+              // Reset periodicite quand on passe en salaire
+              if (e.target.value === 'salaire') {
+                onUpdate('periodicite', 'mensuel')
+                onUpdate('montantMensuel', item.montantSaisi || item.montantMensuel)
+              }
+            }}
             className="w-full px-2 py-1 border border-gray-300 rounded"
           >
             <option value="salaire">Salaire</option>
@@ -89,47 +119,64 @@ export function RevenusSection({ revenus, onRevenusChange }: RevenusSectionProps
       )
     },
     {
-      key: 'nombreMois',
-      header: 'Nb mois',
+      key: 'periodicite',
+      header: 'Periodicite',
       align: 'center' as const,
       render: (item: Revenu, isEditing: boolean, onUpdate: (field: string, value: any) => void) => (
-        item.type === 'salaire' ? (
+        typesAvecPeriodicite.includes(item.type) ? (
           isEditing ? (
             <select
-              value={item.nombreMois || 12}
-              onChange={(e) => onUpdate('nombreMois', Number(e.target.value))}
+              value={item.periodicite || 'mensuel'}
+              onChange={(e) => handlePeriodiciteChange(item, e.target.value, onUpdate)}
               className="w-full px-2 py-1 border border-gray-300 rounded text-center"
             >
-              <option value="12">12 mois</option>
-              <option value="13">13 mois</option>
-              <option value="14">14 mois</option>
-              <option value="15">15 mois</option>
-              <option value="16">16 mois</option>
+              <option value="mensuel">Mensuel</option>
+              <option value="annuel">Annuel</option>
             </select>
           ) : (
-            <span className="text-gray-900">{item.nombreMois || 12} mois</span>
+            <span className="text-gray-900 capitalize">{item.periodicite || 'mensuel'}</span>
           )
         ) : (
-          <span className="text-gray-400 text-sm">-</span>
+          <span className="text-gray-400 text-sm">Mensuel</span>
         )
       )
     },
     {
-      key: 'montantMensuel',
+      key: 'montant',
       header: 'Montant',
       align: 'right' as const,
-      render: (item: Revenu, isEditing: boolean, onUpdate: (field: string, value: any) => void) => (
-        isEditing ? (
-          <input
-            type="number"
-            value={item.montantMensuel}
-            onChange={(e) => onUpdate('montantMensuel', Number(e.target.value))}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-right"
-          />
+      render: (item: Revenu, isEditing: boolean, onUpdate: (field: string, value: any) => void) => {
+        const periodicite = item.periodicite || 'mensuel'
+        const isAnnuel = typesAvecPeriodicite.includes(item.type) && periodicite === 'annuel'
+
+        return isEditing ? (
+          <div>
+            <input
+              type="number"
+              value={item.montantSaisi ?? item.montantMensuel}
+              onChange={(e) => handleMontantChange(item, Number(e.target.value), onUpdate)}
+              className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+            />
+            {isAnnuel && (
+              <div className="text-xs text-gray-500 mt-1 text-right">
+                = {item.montantMensuel.toLocaleString('fr-FR')} EUR/mois
+              </div>
+            )}
+          </div>
         ) : (
-          <span className="text-gray-900 font-semibold">{item.montantMensuel.toLocaleString('fr-FR')} EUR</span>
+          <div className="text-right">
+            <span className="text-gray-900 font-semibold">
+              {(item.montantSaisi ?? item.montantMensuel).toLocaleString('fr-FR')} EUR
+              {isAnnuel && <span className="text-gray-400 font-normal">/an</span>}
+            </span>
+            {isAnnuel && (
+              <div className="text-xs text-gray-500">
+                = {item.montantMensuel.toLocaleString('fr-FR')} EUR/mois
+              </div>
+            )}
+          </div>
         )
-      )
+      }
     }
   ]
 

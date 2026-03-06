@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Users, Building2, Home, CreditCard, User, Briefcase, FileText, Wallet, Check, X, Search, Loader2, Camera } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import { Plus, Trash2, Users, Building2, Home, CreditCard, User, Briefcase, FileText, Wallet, Check, X, Search, Loader2, Pencil } from 'lucide-react'
+import BienPhotoUpload from '@/components/ui/BienPhotoUpload'
 import { TypeStructure } from '@/types'
-import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import AssocieFormV2 from './AssocieFormV2'
-import RechercheEntrepriseParDirigeant from '@/components/RechercheEntrepriseParDirigeant'
 import RechercheEntreprise from '@/components/RechercheEntreprise'
 import { useStructuresContext as useStructures } from '@/contexts/StructuresContext'
+import { useToast } from '@/contexts/ToastContext'
 import { searchEntrepriseBySirenOrSiret, mapEntrepriseToFormData, mapDirigeantsToAssocies, createStructureFromDirigeantPP, createStructureFromDirigeantPM, findExistingPersonnePhysique, findExistingPersonneMorale, EntrepriseApiResult } from '@/services/entrepriseApi'
 
 interface Associe {
@@ -69,7 +70,39 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
   const [activeSection, setActiveSection] = useState<'generale' | 'juridique' | 'associes' | 'patrimoine'>('generale')
   const [type, setType] = useState<TypeStructure>('SCI')
   const { structures, addStructure, refreshStructures, getStructureById } = useStructures()
+  const toast = useToast()
   const [showAssocieModal, setShowAssocieModal] = useState(false)
+
+  // Sliding pill navigation
+  const navRef = useRef<HTMLElement>(null)
+  const tabRefs = useRef<Record<string, HTMLButtonElement>>({})
+  const [pillStyle, setPillStyle] = useState<React.CSSProperties>({ top: 0, left: 0, width: 0, height: 0, opacity: 0 })
+
+  const updatePill = useCallback(() => {
+    const tab = tabRefs.current[activeSection]
+    const nav = navRef.current
+    if (tab && nav) {
+      const navRect = nav.getBoundingClientRect()
+      const tabRect = tab.getBoundingClientRect()
+      setPillStyle({
+        top: tabRect.top - navRect.top,
+        left: tabRect.left - navRect.left,
+        width: tabRect.width,
+        height: tabRect.height,
+        opacity: 1,
+      })
+    }
+  }, [activeSection])
+
+  useLayoutEffect(() => {
+    updatePill()
+  }, [activeSection, updatePill])
+
+  useEffect(() => {
+    window.addEventListener('resize', updatePill)
+    const timer = setTimeout(updatePill, 100)
+    return () => { window.removeEventListener('resize', updatePill); clearTimeout(timer) }
+  }, [updatePill])
 
   // États pour la recherche d'entreprise
   const [siretSearch, setSiretSearch] = useState('')
@@ -165,7 +198,12 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
     siren: '',
     dateCreation: '',
     capitalSocial: 0,
-    banquePrincipale: ''
+    banquePrincipale: '',
+    representantLegalNom: '',
+    representantLegalPrenom: '',
+    representantLegalFonction: 'Gerant',
+    chiffreAffairesAnnuel: 0,
+    resultatNet: 0,
   })
 
   // Associés avec parts
@@ -202,7 +240,12 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           siren: pm.siren,
           dateCreation: pm.dateCreation ? new Date(pm.dateCreation).toISOString().split('T')[0] : '',
           capitalSocial: pm.capitalSocial,
-          banquePrincipale: pm.banquePrincipale || ''
+          banquePrincipale: pm.banquePrincipale || '',
+          representantLegalNom: pm.representantLegal?.nom || '',
+          representantLegalPrenom: pm.representantLegal?.prenom || '',
+          representantLegalFonction: pm.representantLegal?.fonction || 'Gerant',
+          chiffreAffairesAnnuel: Number(pm.chiffreAffairesAnnuel) || 0,
+          resultatNet: Number(pm.resultatNet) || 0,
         })
 
         // En mode édition, marquer la dénomination comme déjà sélectionnée
@@ -265,10 +308,10 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
     setFormData({ ...formData, [field]: value })
   }
 
-  const handleCreateAssocie = (data: any) => {
-    addStructure(data)
+  const handleCreateAssocie = async (data: any) => {
+    await addStructure(data)
     setShowAssocieModal(false)
-    refreshStructures()
+    await refreshStructures()
   }
 
   // Recherche et pré-remplissage depuis l'API entreprise
@@ -314,26 +357,30 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           let dirigeantKey
 
           if (dirigeant.type_dirigeant === 'personne physique') {
-            dirigeantKey = `${dirigeant.nom}-${dirigeant.prenoms}`
+            dirigeantKey = `${dirigeant.nom}-${dirigeant.prenoms}`.toUpperCase()
 
-            // Vérifier si la personne existe déjà
-            const existing = findExistingPersonnePhysique(
-              structures,
-              dirigeant.nom || '',
-              dirigeant.prenoms || ''
-            )
-
-            if (existing) {
-              console.log(`♻️ Structure PP existante trouvée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
-              structure = existing
+            if (createdStructuresMap.has(dirigeantKey)) {
+              structure = { id: createdStructuresMap.get(dirigeantKey) }
             } else {
-              // Créer une nouvelle structure Personne Physique
-              const structureData = createStructureFromDirigeantPP(dirigeant)
-              structure = addStructure(structureData)
-              console.log(`✅ Structure PP créée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
+              // Vérifier si la personne existe déjà
+              const existing = findExistingPersonnePhysique(
+                structures,
+                dirigeant.nom || '',
+                dirigeant.prenoms || ''
+              )
+
+              if (existing) {
+                console.log(`♻️ Structure PP existante trouvée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
+                structure = existing
+              } else {
+                // Créer une nouvelle structure Personne Physique
+                const structureData = createStructureFromDirigeantPP(dirigeant)
+                structure = await addStructure(structureData)
+                console.log(`✅ Structure PP créée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
+              }
             }
           } else {
-            dirigeantKey = dirigeant.siren || `pm-${Date.now()}`
+            dirigeantKey = dirigeant.siren || `pm-${dirigeant.denomination || Date.now()}`
 
             // Vérifier si la personne morale existe déjà
             const existing = findExistingPersonneMorale(
@@ -484,50 +531,57 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             if (existing) {
               console.log(`♻️ Structure PP existante trouvée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
               structure = existing
-            } else {
+            } else if (!createdStructuresMap.has(dirigeantKey)) {
               // Créer une nouvelle structure Personne Physique
               const structureData = createStructureFromDirigeantPP(dirigeant)
-              structure = addStructure(structureData)
+              structure = await addStructure(structureData)
               console.log(`✅ Structure PP créée pour ${dirigeant.prenoms} ${dirigeant.nom}`)
+            } else {
+              structure = { id: createdStructuresMap.get(dirigeantKey) }
             }
           }
         } else {
-          dirigeantKey = dirigeant.siren || `pm-${Date.now()}`
+          dirigeantKey = dirigeant.siren || `pm-${dirigeant.denomination || Date.now()}`
 
-          // Vérifier si la personne morale existe déjà
-          const existing = findExistingPersonneMorale(
-            structures,
-            dirigeant.siren,
-            dirigeant.denomination
-          )
-
-          if (existing) {
-            console.log(`♻️ Structure PM existante trouvée pour ${dirigeant.denomination}`)
-            structure = existing
+          // Vérifier si déjà créé dans cette session
+          if (createdStructuresMap.has(dirigeantKey)) {
+            structure = { id: createdStructuresMap.get(dirigeantKey) }
           } else {
-            // Récupérer les données complètes de l'entreprise via l'API
-            console.log(`🔍 Récupération des données complètes pour ${dirigeant.denomination} (SIREN: ${dirigeant.siren})`)
-            let entrepriseCompleteData = null
-            try {
-              const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${dirigeant.siren}`)
-              const data = await response.json()
-              if (data.results && data.results.length > 0) {
-                entrepriseCompleteData = data.results[0]
-                console.log(`✅ Données récupérées pour ${dirigeant.denomination}`)
-              }
-            } catch (error) {
-              console.error(`❌ Erreur lors de la récupération des données pour ${dirigeant.denomination}:`, error)
-            }
+            // Vérifier si la personne morale existe déjà
+            const existing = findExistingPersonneMorale(
+              structures,
+              dirigeant.siren,
+              dirigeant.denomination
+            )
 
-            // Créer une nouvelle structure Personne Morale avec les données complètes
-            const structureData = createStructureFromDirigeantPM(dirigeant, entrepriseCompleteData)
-            structure = addStructure(structureData)
-            console.log(`✅ Structure PM créée pour ${dirigeant.denomination}`)
+            if (existing) {
+              console.log(`♻️ Structure PM existante trouvée pour ${dirigeant.denomination}`)
+              structure = existing
+            } else {
+              // Récupérer les données complètes de l'entreprise via l'API
+              console.log(`🔍 Récupération des données complètes pour ${dirigeant.denomination} (SIREN: ${dirigeant.siren})`)
+              let entrepriseCompleteData = null
+              try {
+                const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${dirigeant.siren}`)
+                const data = await response.json()
+                if (data.results && data.results.length > 0) {
+                  entrepriseCompleteData = data.results[0]
+                  console.log(`✅ Données récupérées pour ${dirigeant.denomination}`)
+                }
+              } catch (error) {
+                console.error(`❌ Erreur lors de la récupération des données pour ${dirigeant.denomination}:`, error)
+              }
+
+              // Créer une nouvelle structure Personne Morale avec les données complètes
+              const structureData = createStructureFromDirigeantPM(dirigeant, entrepriseCompleteData)
+              structure = await addStructure(structureData)
+              console.log(`✅ Structure PM créée pour ${dirigeant.denomination}`)
+            }
           }
         }
 
         // Stocker l'ID de la structure (nouvelle ou existante)
-        createdStructuresMap.set(dirigeantKey, structure.id)
+        if (structure?.id) createdStructuresMap.set(dirigeantKey, structure.id)
       }
 
       // Créer les associés en les liant aux structures créées
@@ -600,15 +654,20 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
         }
       }
 
-      // Ajouter l'entreprise comme associé
-      nouveauxAssocies.push({
-        id: `associe-${Date.now()}-${entreprise.siren}`,
-        type: 'PM',
-        structureId: structureEntreprise.id,
-        nom: entreprise.nom_raison_sociale || entreprise.nom_complet,
-        fonction: 'Associé',
-        pourcentageParts: 0
-      })
+      // Ajouter l'entreprise comme associé (seulement si pas déjà dans la liste)
+      const alreadyAssocie = associes.some(a => a.structureId === structureEntreprise.id)
+      if (!alreadyAssocie) {
+        nouveauxAssocies.push({
+          id: `associe-${Date.now()}-${entreprise.siren}`,
+          type: 'PM',
+          structureId: structureEntreprise.id,
+          nom: entreprise.nom_raison_sociale || entreprise.nom_complet,
+          fonction: 'Associé',
+          pourcentageParts: 0
+        })
+      } else {
+        console.log(`  ⏭️ ${entreprise.nom_raison_sociale} déjà associé, ignoré`)
+      }
 
       // ÉTAPE 2: Créer les structures pour TOUS les dirigeants de cette entreprise
       if (entreprise.dirigeants && entreprise.dirigeants.length > 0) {
@@ -789,12 +848,13 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
       })
     }
 
-    // Rafraîchir pour avoir toutes les structures à jour
-    await refreshStructures()
+    // Rafraîchir UNE SEULE FOIS et utiliser le retour direct (pas la closure stale)
+    const freshStructures = await refreshStructures()
+    console.log(`  📦 Structures fraîches: ${freshStructures.length}`)
 
     // Pour chaque entreprise, créer et sauvegarder ses associés
     for (const [entrepriseId, dirigeants] of relationsByEntreprise.entries()) {
-      const entreprise = structures.find(s => s.id === entrepriseId)
+      const entreprise = freshStructures.find(s => s.id === entrepriseId)
       if (!entreprise || !entreprise.personneMorale) {
         console.warn(`  ⚠️ Entreprise ${entrepriseId} non trouvée ou n'est pas une PM`)
         continue
@@ -804,7 +864,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
 
       // Créer les associés pour cette entreprise
       const associesEntreprise: Associe[] = dirigeants.map(({ dirigeantId, qualite }) => {
-        const structureDirigeant = structures.find(s => s.id === dirigeantId)
+        const structureDirigeant = freshStructures.find(s => s.id === dirigeantId)
         if (!structureDirigeant) return null
 
         const isDirigeantPP = structureDirigeant.type === 'PERSONNE_PHYSIQUE'
@@ -855,35 +915,44 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
     console.log(`\n👥 Ajout des dirigeants comme associés de la société en cours`)
     const associesDirigeants: Associe[] = []
 
-    // Parcourir toutes les structures créées (dirigeants)
+    // Parcourir toutes les structures créées (dirigeants) - utiliser freshStructures déjà chargées
     for (const [key, dirigeantId] of createdStructuresMap.entries()) {
-      // Récupérer la structure complète depuis structures ou depuis les nouvellement créées
-      await refreshStructures() // Rafraîchir pour avoir les dernières structures
-      const allStructures = structures
-      const structureDirigeant = allStructures.find(s => s.id === dirigeantId)
+      const structureDirigeant = freshStructures.find(s => s.id === dirigeantId)
 
       if (structureDirigeant) {
-        const isDirigeantPP = structureDirigeant.type === 'PERSONNE_PHYSIQUE'
+        // Vérifier qu'il n'est pas déjà associé
+        const alreadyAssocie = associes.some(a => a.structureId === dirigeantId)
+        const alreadyInNouveaux = nouveauxAssocies.some(a => a.structureId === dirigeantId)
 
-        // Trouver la qualité/fonction depuis les relations
-        const relation = relationsDetentionToCreate.find(r => r.dirigeantId === dirigeantId)
+        if (!alreadyAssocie && !alreadyInNouveaux) {
+          const isDirigeantPP = structureDirigeant.type === 'PERSONNE_PHYSIQUE'
 
-        associesDirigeants.push({
-          id: `associe-dirigeant-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-          type: isDirigeantPP ? 'PP' : 'PM',
-          structureId: dirigeantId,
-          nom: structureDirigeant.nom,
-          prenom: isDirigeantPP && structureDirigeant.personnePhysique?.prenom ? structureDirigeant.personnePhysique.prenom : undefined,
-          fonction: relation?.qualite || 'Dirigeant',
-          pourcentageParts: 0 // À définir manuellement
-        })
+          // Trouver la qualité/fonction depuis les relations
+          const relation = relationsDetentionToCreate.find(r => r.dirigeantId === dirigeantId)
 
-        console.log(`  ✅ Associé créé: ${structureDirigeant.nom} (${isDirigeantPP ? 'PP' : 'PM'})`)
+          associesDirigeants.push({
+            id: `associe-dirigeant-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+            type: isDirigeantPP ? 'PP' : 'PM',
+            structureId: dirigeantId,
+            nom: structureDirigeant.nom,
+            prenom: isDirigeantPP && structureDirigeant.personnePhysique?.prenom ? structureDirigeant.personnePhysique.prenom : undefined,
+            fonction: relation?.qualite || 'Dirigeant',
+            pourcentageParts: 0
+          })
+
+          console.log(`  ✅ Associé créé: ${structureDirigeant.nom} (${isDirigeantPP ? 'PP' : 'PM'})`)
+        } else {
+          console.log(`  ⏭️ ${structureDirigeant.nom} déjà associé, ignoré`)
+        }
       }
     }
 
-    // Ajouter TOUS les associés à la liste existante (entreprises + dirigeants)
-    setAssocies([...associes, ...nouveauxAssocies, ...associesDirigeants])
+    // Ajouter les nouveaux associés sans doublons (functional update pour éviter la closure stale)
+    setAssocies(prev => {
+      const existingIds = new Set(prev.map(a => a.structureId).filter(Boolean))
+      const toAdd = [...nouveauxAssocies, ...associesDirigeants].filter(a => !existingIds.has(a.structureId))
+      return [...prev, ...toAdd]
+    })
     console.log(`✅ ${nouveauxAssocies.length} entreprise(s) ajoutée(s) comme associé(s)`)
     console.log(`✅ ${associesDirigeants.length} dirigeant(s) ajouté(s) comme associé(s)`)
     console.log(`✅ ${createdStructuresMap.size} structure(s) de dirigeants créées`)
@@ -971,60 +1040,6 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
   }
 
   // Compresser une image (max 800px, JPEG 0.6 - plus petit pour JSONB)
-  const compressImage = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      const objectUrl = URL.createObjectURL(blob)
-      img.onload = () => {
-        const MAX = 800
-        let w = img.width
-        let h = img.height
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
-          else { w = Math.round(w * MAX / h); h = MAX }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, w, h)
-        const compressed = canvas.toDataURL('image/jpeg', 0.6)
-        URL.revokeObjectURL(objectUrl)
-        resolve(compressed)
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl)
-        reject(new Error('Format non supporte'))
-      }
-      img.src = objectUrl
-    })
-  }
-
-  const handleBienPhotoUpload = async (bienId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue
-      if (file.size > 15 * 1024 * 1024) continue
-      try {
-        const compressed = await compressImage(file)
-        setBiens(prev => prev.map(b => b.id === bienId
-          ? { ...b, photos: [...(b.photos || []), compressed] }
-          : b
-        ))
-      } catch (err) {
-        console.error('Erreur compression photo bien:', err)
-      }
-    }
-    e.target.value = ''
-  }
-
-  const removeBienPhoto = (bienId: string, photoIndex: number) => {
-    setBiens(prev => prev.map(b => b.id === bienId
-      ? { ...b, photos: (b.photos || []).filter((_, i) => i !== photoIndex) }
-      : b
-    ))
-  }
 
   // === CRÉDITS ===
   const addCredit = () => {
@@ -1128,6 +1143,13 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
         dateCreation: formData.dateCreation ? new Date(formData.dateCreation) : new Date(),
         capitalSocial: formData.capitalSocial,
         banquePrincipale: formData.banquePrincipale,
+        representantLegal: (formData.representantLegalNom || formData.representantLegalPrenom) ? {
+          nom: formData.representantLegalNom,
+          prenom: formData.representantLegalPrenom,
+          fonction: formData.representantLegalFonction,
+        } : undefined,
+        chiffreAffairesAnnuel: formData.chiffreAffairesAnnuel || undefined,
+        resultatNet: formData.resultatNet || undefined,
         associes: associes,
         biens: biens,
         credits: credits
@@ -1140,7 +1162,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     saveData()
-    // Ne pas appeler onCancel() ici car onSubmit s'occupe de fermer la modal
+    toast.success('Données mises à jour avec succès')
   }
 
   const handleCancel = () => {
@@ -1159,22 +1181,28 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
 
   return (
     <>
-    <form onSubmit={handleSubmit}>
-      <Card className="mb-6">
-        {/* Navigation sections - Style ProjetFormV2 */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-4 flex-wrap">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full">
+      <div>
+        {/* Navigation sections with sliding pill */}
+        <div className="border-b border-gray-200 mb-6 pb-3">
+          <nav ref={navRef} className="relative flex space-x-1 flex-wrap">
+            {/* Sliding pill background */}
+            <div
+              className="absolute bg-gray-900 rounded-xl transition-all duration-300 ease-out"
+              style={pillStyle}
+            />
             {sections.map(section => {
               const Icon = section.icon
               return (
                 <button
                   key={section.id}
+                  ref={(el) => { if (el) tabRefs.current[section.id] = el }}
                   type="button"
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  className={`relative z-10 flex items-center gap-2 py-2 px-3 font-medium text-sm whitespace-nowrap transition-colors duration-200 rounded-xl ${
                     activeSection === section.id
-                      ? 'border-green-600 text-green-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'text-white'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -1185,22 +1213,25 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           </nav>
         </div>
 
+        {/* Section content with slide animation */}
+        <div key={activeSection} className="animate-section-slide">
+
         {/* Informations générales */}
         {activeSection === 'generale' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900">Type de société</h3>
-              <p className="text-sm text-gray-600 mt-1 mb-4">Sélectionnez le type de structure juridique</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Type de société</h3>
+              <p className="text-sm text-gray-500 mt-0.5 mb-3">Sélectionnez le type de structure juridique</p>
+              <div className="flex flex-wrap gap-2">
                 {typesSociete.map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => handleTypeChange(t)}
-                    className={`px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
+                    className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
                       type === t
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gradient-to-br from-coral-100 via-honey-100 to-honey-50 border border-honey-200 text-gray-900 shadow-sm'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}
                   >
                     {t}
@@ -1209,104 +1240,142 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
               </div>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="text-xl font-semibold text-gray-900">Informations de contact</h3>
-              <p className="text-sm text-gray-600 mt-1 mb-4">Coordonnées de la société</p>
+            {/* Recherche d'entreprise */}
+            <RechercheEntreprise
+              onSelectEntreprise={handleSelectSuggestion}
+            />
 
-              {/* Recherche d'entreprise */}
-              <RechercheEntreprise
-                onSelectEntreprise={handleSelectSuggestion}
+            {/* Dénomination + Adresse pleine largeur */}
+            <Input
+              label="Dénomination sociale"
+              value={formData.denominationSociale}
+              onChange={(e) => handleChange('denominationSociale', e.target.value)}
+              required
+              placeholder="Ex: La Poste, Carrefour, BNP Paribas..."
+            />
+
+            <AddressAutocomplete
+              label="Adresse du siège social"
+              value={formData.adresse}
+              onChange={(val) => handleChange('adresse', val)}
+              required
+              placeholder="123 Rue de Paris, 75001 Paris"
+            />
+
+            {/* Téléphone, Email, Banque - grille 3 colonnes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input
+                label="Téléphone"
+                type="tel"
+                value={formData.telephone}
+                onChange={(e) => handleChange('telephone', e.target.value)}
+                placeholder="01 23 45 67 89"
               />
-
-              <div className="space-y-4">
-                {/* Champ Dénomination sociale */}
-                <Input
-                  label="Dénomination sociale"
-                  value={formData.denominationSociale}
-                  onChange={(e) => handleChange('denominationSociale', e.target.value)}
-                  required
-                  placeholder="Ex: La Poste, Carrefour, BNP Paribas..."
-                />
-
-                <Input
-                  label="Adresse du siège social"
-                  value={formData.adresse}
-                  onChange={(e) => handleChange('adresse', e.target.value)}
-                  required
-                  placeholder="123 Rue de Paris, 75001 Paris"
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Téléphone"
-                    type="tel"
-                    value={formData.telephone}
-                    onChange={(e) => handleChange('telephone', e.target.value)}
-                    placeholder="01 23 45 67 89"
-                  />
-
-                  <Input
-                    label="Email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    placeholder="contact@sci.fr"
-                  />
-                </div>
-              </div>
+              <Input
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                placeholder="contact@sci.fr"
+              />
+              <Input
+                label="Banque principale"
+                value={formData.banquePrincipale}
+                onChange={(e) => handleChange('banquePrincipale', e.target.value)}
+                placeholder="Crédit Agricole..."
+              />
             </div>
           </div>
         )}
 
         {/* Informations juridiques */}
         {activeSection === 'juridique' && (
-          <div className="space-y-6">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold text-gray-900">Informations juridiques</h3>
-              <p className="text-sm text-gray-600 mt-1">Renseignements légaux et administratifs de la société</p>
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Informations juridiques</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Renseignements légaux et administratifs</p>
             </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="SIRET"
-                  value={formData.siret}
-                  onChange={(e) => handleChange('siret', e.target.value)}
-                  maxLength={14}
-                  placeholder="12345678901234"
-                />
 
-                <Input
-                  label="SIREN"
-                  value={formData.siren}
-                  onChange={(e) => handleChange('siren', e.target.value)}
-                  maxLength={9}
-                  placeholder="123456789"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Date de création"
-                  type="date"
-                  value={formData.dateCreation}
-                  onChange={(e) => handleChange('dateCreation', e.target.value)}
-                />
-
-                <Input
-                  label="Capital social (€)"
-                  type="number"
-                  value={formData.capitalSocial}
-                  onChange={(e) => handleChange('capitalSocial', Number(e.target.value))}
-                  placeholder="1000"
-                />
-              </div>
-
+            {/* SIRET, SIREN, Date création - grille 3 colonnes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Input
-                label="Banque principale"
-                value={formData.banquePrincipale}
-                onChange={(e) => handleChange('banquePrincipale', e.target.value)}
-                placeholder="Banque Populaire, Crédit Agricole..."
+                label="SIRET"
+                value={formData.siret}
+                onChange={(e) => handleChange('siret', e.target.value)}
+                maxLength={14}
+                placeholder="12345678901234"
               />
+              <Input
+                label="SIREN"
+                value={formData.siren}
+                onChange={(e) => handleChange('siren', e.target.value)}
+                maxLength={9}
+                placeholder="123456789"
+              />
+              <Input
+                label="Date de création"
+                type="date"
+                value={formData.dateCreation}
+                onChange={(e) => handleChange('dateCreation', e.target.value)}
+              />
+            </div>
+
+            {/* Capital, CA, Résultat net - grille 3 colonnes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input
+                label="Capital social (€)"
+                type="number"
+                value={formData.capitalSocial || ''}
+                onChange={(e) => handleChange('capitalSocial', Number(e.target.value))}
+                placeholder="1000"
+              />
+              <Input
+                label="CA annuel (€)"
+                type="number"
+                min="0"
+                value={formData.chiffreAffairesAnnuel || ''}
+                onChange={(e) => handleChange('chiffreAffairesAnnuel', Number(e.target.value) || 0)}
+                placeholder="0"
+              />
+              <Input
+                label="Résultat net (€)"
+                type="number"
+                value={formData.resultatNet || ''}
+                onChange={(e) => handleChange('resultatNet', Number(e.target.value) || 0)}
+                placeholder="0"
+              />
+            </div>
+
+            {/* Représentant légal - sous-titre + grille 3 colonnes */}
+            <div className="pt-2">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Représentant légal</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input
+                  label="Prénom"
+                  value={formData.representantLegalPrenom}
+                  onChange={(e) => handleChange('representantLegalPrenom', e.target.value)}
+                  placeholder="Prénom"
+                />
+                <Input
+                  label="Nom"
+                  value={formData.representantLegalNom}
+                  onChange={(e) => handleChange('representantLegalNom', e.target.value)}
+                  placeholder="Nom"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fonction</label>
+                  <select
+                    value={formData.representantLegalFonction}
+                    onChange={(e) => handleChange('representantLegalFonction', e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900/10 focus:outline-none"
+                  >
+                    <option value="Gerant">Gérant</option>
+                    <option value="President">Président</option>
+                    <option value="Directeur_General">Directeur Général</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1317,7 +1386,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             <div className="mb-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Associés</h3>
+                  <h3 className="text-lg font-bold text-gray-900 tracking-tight">Associés</h3>
                   <p className="text-sm text-gray-600 mt-1">Gérez les associés et leur participation</p>
                 </div>
                 <div className={`text-sm font-medium ${totalParts === 100 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1330,48 +1399,29 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             {associes.map((associe, index) => {
               const isEditing = editingAssocieId === associe.id
               return (
-              <div key={associe.id} className={`p-4 border border-gray-200 rounded-lg space-y-4 ${isEditing ? 'bg-white' : 'bg-gray-50'}`}>
+              <div key={associe.id} className={`p-4 border border-gray-200 rounded-xl space-y-4 bg-white`}>
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-gray-700">Associé #{index + 1}</span>
                   <div className="flex gap-2">
                     {!isEditing ? (
                       <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setEditingAssocieId(associe.id)}
-                          className="text-sm"
-                        >
-                          Modifier
-                        </Button>
+                        <button type="button" onClick={() => setEditingAssocieId(associe.id)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                         {associes.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeAssocie(associe.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
+                          <button type="button" onClick={() => removeAssocie(associe.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </>
                     ) : (
                       <>
-                        <Button
-                          type="button"
-                          variant="primary"
-                          onClick={() => validateAssocie(associe.id)}
-                          className="text-sm"
-                        >
-                          Valider
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => cancelAssocieEdit(associe.id)}
-                          className="text-sm"
-                        >
-                          Annuler
-                        </Button>
+                        <button type="button" onClick={() => validateAssocie(associe.id)} className="p-1.5 text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => cancelAssocieEdit(associe.id)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
                       </>
                     )}
                   </div>
@@ -1385,10 +1435,10 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                       type="button"
                       onClick={() => updateAssocie(associe.id, 'type', 'PP')}
                       disabled={!isEditing}
-                      className={`px-4 py-3 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
+                      className={`px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
                         associe.type === 'PP'
-                          ? 'bg-blue-600 text-white disabled:bg-blue-400'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100'
+                          ? 'bg-gradient-to-br from-coral-100 via-honey-100 to-honey-50 border border-honey-200 text-gray-900'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 disabled:hover:border-gray-200'
                       }`}
                     >
                       <Users className="h-4 w-4" />
@@ -1398,10 +1448,10 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                       type="button"
                       onClick={() => updateAssocie(associe.id, 'type', 'PM')}
                       disabled={!isEditing}
-                      className={`px-4 py-3 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
+                      className={`px-4 py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed ${
                         associe.type === 'PM'
-                          ? 'bg-green-500 text-white disabled:bg-green-400'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100'
+                          ? 'bg-gradient-to-br from-coral-100 via-honey-100 to-honey-50 border border-honey-200 text-gray-900'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 disabled:hover:border-gray-200'
                       }`}
                     >
                       <Building2 className="h-4 w-4" />
@@ -1425,7 +1475,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         }}
                         onClick={(e) => e.stopPropagation()}
                         disabled={!isEditing}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-xl disabled:bg-gray-100 disabled:cursor-not-allowed"
                       >
                         <option value="">Sélectionnez un associé</option>
                         {personnesPhysiques.map(pp => (
@@ -1467,7 +1517,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                       }}
                       onClick={(e) => e.stopPropagation()}
                       disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">Sélectionnez une société</option>
                       {personnesMorales.map(pm => (
@@ -1496,7 +1546,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                   <Input
                     label="Pourcentage de parts (%)"
                     type="number"
-                    value={associe.pourcentageParts}
+                    value={associe.pourcentageParts || ''}
                     onChange={(e) => updateAssocie(associe.id, 'pourcentageParts', Number(e.target.value))}
                     required
                     min={0}
@@ -1519,7 +1569,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             </Button>
 
             {totalParts !== 100 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
                 ⚠️ Le total des parts doit être exactement 100%
               </div>
             )}
@@ -1532,7 +1582,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             {/* Biens immobiliers de cette société */}
             <div className="space-y-6">
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">Biens immobiliers de cette société</h3>
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">Biens immobiliers de cette société</h3>
                 <p className="text-sm text-gray-600 mt-1">Propriétés détenues par la société</p>
               </div>
 
@@ -1542,7 +1592,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b-2 border-gray-300">
+                      <tr className="border-b-2 border-gray-200">
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Type de bien</th>
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Adresse</th>
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
@@ -1560,7 +1610,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         return (
                           <React.Fragment key={bien.id}>
                             <tr
-                              className={`border-b border-gray-200 hover:bg-gray-50 ${isEditing ? 'bg-green-50' : 'cursor-pointer'}`}
+                              className={`border-b border-gray-200 hover:bg-gray-50 ${isEditing ? 'bg-gray-50' : 'cursor-pointer'}`}
                               onClick={() => !isEditing && setEditingBienId(bien.id)}
                             >
                               {/* Type de bien */}
@@ -1569,14 +1619,24 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                   <select
                                     value={bien.type}
                                     onChange={(e) => updateBien(bien.id, 'type', e.target.value)}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                                    className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                                   >
                                     <option value="Residence_Principale">Résidence principale</option>
                                     <option value="Residence_Secondaire">Résidence secondaire</option>
                                     <option value="Investissement_Locatif">Investissement locatif</option>
                                   </select>
                                 ) : (
-                                  <span className="text-gray-900">{bien.type.replace(/_/g, ' ')}</span>
+                                  <div className="flex items-center gap-2">
+                                    {bien.photos && bien.photos.length > 0 && (
+                                      <img src={bien.photos[0]} alt="" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+                                    )}
+                                    <div>
+                                      <span className="text-gray-900">{bien.type.replace(/_/g, ' ')}</span>
+                                      {bien.photos && bien.photos.length > 0 && (
+                                        <span className="ml-1.5 text-[10px] text-gray-400">{bien.photos.length} photo{bien.photos.length > 1 ? 's' : ''}</span>
+                                      )}
+                                    </div>
+                                  </div>
                                 )}
                               </td>
 
@@ -1588,7 +1648,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                     value={bien.adresse}
                                     onChange={(e) => updateBien(bien.id, 'adresse', e.target.value)}
                                     placeholder="Adresse du bien"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                                    className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                                   />
                                 ) : (
                                   <span className="text-gray-900">{bien.adresse}</span>
@@ -1601,7 +1661,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                   <select
                                     value={bien.statut || 'En_location'}
                                     onChange={(e) => updateBien(bien.id, 'statut', e.target.value)}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                                    className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                                   >
                                     <option value="En_location">En location</option>
                                     <option value="Vacant">Vacant</option>
@@ -1617,15 +1677,15 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                 {isEditing ? (
                                   <input
                                     type="number"
-                                    value={bien.loyerMensuel || 0}
+                                    value={bien.loyerMensuel || ''}
                                     onChange={(e) => updateBien(bien.id, 'loyerMensuel', Number(e.target.value))}
                                     placeholder="0"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+                                    className="w-full px-2 py-1 border border-gray-200 rounded-xl text-right"
                                     disabled={bien.statut !== 'En_location'}
                                   />
                                 ) : (
                                   bien.statut === 'En_location' && bien.loyerMensuel ? (
-                                    <span className="font-semibold text-blue-600">{bien.loyerMensuel.toLocaleString('fr-FR')} €</span>
+                                    <span className="font-semibold text-gray-900">{bien.loyerMensuel.toLocaleString('fr-FR')} €</span>
                                   ) : (
                                     <span className="text-gray-400 text-sm">-</span>
                                   )
@@ -1637,10 +1697,10 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                 {isEditing ? (
                                   <input
                                     type="number"
-                                    value={bien.valeurEstimee}
+                                    value={bien.valeurEstimee || ''}
                                     onChange={(e) => updateBien(bien.id, 'valeurEstimee', Number(e.target.value))}
                                     placeholder="0"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+                                    className="w-full px-2 py-1 border border-gray-200 rounded-xl text-right"
                                   />
                                 ) : (
                                   <span className="font-semibold text-green-600">{bien.valeurEstimee.toLocaleString('fr-FR')} €</span>
@@ -1664,7 +1724,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                       <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); removeBien(bien.id); }}
-                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                                         title="Supprimer"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1675,7 +1735,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                       <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); validateBien(bien.id); }}
-                                        className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                        className="p-1.5 text-green-600 hover:bg-green-50 rounded-xl transition-colors"
                                         title="Valider"
                                       >
                                         <Check className="h-4 w-4" />
@@ -1683,7 +1743,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                       <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); cancelBienEdit(bien.id); }}
-                                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
                                         title="Annuler"
                                       >
                                         <X className="h-4 w-4" />
@@ -1696,50 +1756,18 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                             {/* Photos du bien */}
                             {isEditing && (
                               <tr>
-                                <td colSpan={7} className="px-4 py-3 bg-green-50 border-b border-gray-200">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Camera className="h-4 w-4 text-gray-500" />
-                                    <span className="text-sm font-medium text-gray-700">Photos du bien</span>
-                                    <label className="cursor-pointer text-sm text-purple-600 hover:text-purple-800 font-medium ml-2">
-                                      + Ajouter
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(e) => handleBienPhotoUpload(bien.id, e)}
-                                      />
-                                    </label>
-                                  </div>
-                                  {(bien.photos && bien.photos.length > 0) ? (
-                                    <div className="flex gap-2 flex-wrap">
-                                      {bien.photos.map((photo, pIdx) => (
-                                        <div key={pIdx} className="relative group">
-                                          <img
-                                            src={photo}
-                                            alt={`Photo ${pIdx + 1}`}
-                                            className="h-16 w-20 object-cover rounded border border-gray-300"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() => removeBienPhoto(bien.id, pIdx)}
-                                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          >
-                                            <X className="h-3 w-3" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-gray-400">Aucune photo. Les photos seront affichees dans le PDF.</p>
-                                  )}
+                                <td colSpan={7} className="px-4 py-3 bg-white border-b border-gray-200">
+                                  <BienPhotoUpload
+                                    photos={bien.photos || []}
+                                    onChange={(newPhotos) => updateBien(bien.id, 'photos', newPhotos)}
+                                  />
                                 </td>
                               </tr>
                             )}
                             {/* Lots / composition du bien (mode edition) */}
                             {isEditing && (
                               <tr>
-                                <td colSpan={7} className="px-4 py-3 bg-green-50 border-b border-gray-200">
+                                <td colSpan={7} className="px-4 py-3 bg-white border-b border-gray-200">
                                   <div className="flex items-center gap-2 mb-2">
                                     <Home className="h-4 w-4 text-gray-500" />
                                     <span className="text-sm font-medium text-gray-700">Composition du bien (lots)</span>
@@ -1754,7 +1782,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                         }
                                         updateBien(bien.id, 'lots', [...(bien.lots || []), newLot])
                                       }}
-                                      className="text-sm text-purple-600 hover:text-purple-800 font-medium ml-2"
+                                      className="text-sm text-gray-900 hover:text-gray-700 font-medium ml-2"
                                     >
                                       + Ajouter un lot
                                     </button>
@@ -1762,7 +1790,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                   {(bien.lots && bien.lots.length > 0) ? (
                                     <table className="w-full text-sm">
                                       <thead>
-                                        <tr className="border-b border-gray-300">
+                                        <tr className="border-b border-gray-200">
                                           <th className="text-left py-1 px-2 text-xs font-semibold text-gray-600">Type</th>
                                           <th className="text-left py-1 px-2 text-xs font-semibold text-gray-600">Designation</th>
                                           <th className="text-right py-1 px-2 text-xs font-semibold text-gray-600">Surface m2</th>
@@ -1781,7 +1809,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                                   const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, type: e.target.value } : l)
                                                   updateBien(bien.id, 'lots', updated)
                                                 }}
-                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                                className="w-full px-1 py-0.5 border border-gray-200 rounded-xl text-xs"
                                               >
                                                 <option value="Appartement">Appartement</option>
                                                 <option value="Studio">Studio</option>
@@ -1801,7 +1829,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                                   updateBien(bien.id, 'lots', updated)
                                                 }}
                                                 placeholder="Ex: T3 RDC"
-                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                                className="w-full px-1 py-0.5 border border-gray-200 rounded-xl text-xs"
                                               />
                                             </td>
                                             <td className="py-1 px-2">
@@ -1813,7 +1841,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                                   updateBien(bien.id, 'lots', updated)
                                                 }}
                                                 placeholder="0"
-                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                                                className="w-full px-1 py-0.5 border border-gray-200 rounded-xl text-xs text-right"
                                               />
                                             </td>
                                             <td className="py-1 px-2">
@@ -1825,7 +1853,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                                   updateBien(bien.id, 'lots', updated)
                                                 }}
                                                 placeholder="0"
-                                                className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                                                className="w-full px-1 py-0.5 border border-gray-200 rounded-xl text-xs text-right"
                                               />
                                             </td>
                                             <td className="py-1 px-2 text-center">
@@ -1835,7 +1863,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                                   const updated = (bien.lots || []).map(l => l.id === lot.id ? { ...l, statut: e.target.value } : l)
                                                   updateBien(bien.id, 'lots', updated)
                                                 }}
-                                                className="px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                                className="px-1 py-0.5 border border-gray-200 rounded-xl text-xs"
                                               >
                                                 <option value="Loue">Loue</option>
                                                 <option value="Vacant">Vacant</option>
@@ -1862,7 +1890,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                                           <td className="py-1 px-2 text-xs text-right text-gray-700">
                                             {bien.lots.reduce((s, l) => s + (l.superficie || 0), 0)} m2
                                           </td>
-                                          <td className="py-1 px-2 text-xs text-right text-blue-700">
+                                          <td className="py-1 px-2 text-xs text-right text-gray-900 font-medium">
                                             {bien.lots.reduce((s, l) => s + (l.loyerMensuel || 0), 0).toLocaleString('fr-FR')} EUR
                                           </td>
                                           <td className="py-1 px-2 text-xs text-center text-gray-500">
@@ -1917,7 +1945,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                   e.preventDefault()
                   addBien()
                 }}
-                className="w-full py-3 px-6 bg-purple-100 hover:bg-purple-200 text-purple-700 border-2 border-purple-300 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2 mt-6"
+                className="w-full py-3 px-6 bg-gray-900 hover:bg-gray-800 text-white border-2 border-gray-900 rounded-xl font-semibold transition-all duration-200 hover:shadow-md flex items-center justify-center gap-2 mt-6"
               >
                 <Plus className="h-5 w-5" />
                 Ajouter un bien
@@ -1927,7 +1955,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
             {/* Crédits en cours de cette société */}
             <div className="space-y-6">
               <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">Crédits en cours de cette société</h3>
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">Crédits en cours de cette société</h3>
                 <p className="text-sm text-gray-600 mt-1">Emprunts et financements en cours</p>
               </div>
 
@@ -1938,7 +1966,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                 {credits.map((credit) => {
                   const isEditing = editingCreditId === credit.id
                   return (
-                  <div key={credit.id} className={`p-4 border border-gray-200 rounded-lg space-y-4 ${isEditing ? 'bg-white' : 'bg-gray-50'}`}>
+                  <div key={credit.id} className={`p-4 border border-gray-200 rounded-xl space-y-4 bg-white`}>
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-gray-700">Crédit</span>
                       <div className="flex gap-2">
@@ -1991,7 +2019,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         <select
                           value={credit.type}
                           onChange={(e) => updateCredit(credit.id, 'type', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                           disabled={!isEditing}
                         >
                           <option value="Immobilier">Immobilier</option>
@@ -2019,7 +2047,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         <select
                           value={credit.bienAssocie || ''}
                           onChange={(e) => updateCredit(credit.id, 'bienAssocie', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                           disabled={!isEditing}
                         >
                           <option value="">Sélectionnez un bien</option>
@@ -2041,7 +2069,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                       <Input
                         label="Montant initial (€)"
                         type="number"
-                        value={credit.montantInitial}
+                        value={credit.montantInitial || ''}
                         onChange={(e) => updateCredit(credit.id, 'montantInitial', Number(e.target.value))}
                         placeholder="200000"
                         disabled={!isEditing}
@@ -2058,7 +2086,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                       <Input
                         label="Durée (mois)"
                         type="number"
-                        value={credit.nombreMois}
+                        value={credit.nombreMois || ''}
                         onChange={(e) => updateCredit(credit.id, 'nombreMois', Number(e.target.value))}
                         placeholder="240 (20 ans)"
                         disabled={!isEditing}
@@ -2070,7 +2098,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         label="Taux d'intérêt (%)"
                         type="number"
                         step="0.01"
-                        value={credit.tauxInteret}
+                        value={credit.tauxInteret || ''}
                         onChange={(e) => updateCredit(credit.id, 'tauxInteret', Number(e.target.value))}
                         placeholder="3.5"
                         disabled={!isEditing}
@@ -2085,7 +2113,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                           type="number"
                           value={credit.mensualite || 0}
                           disabled
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-700"
                         />
                       </div>
 
@@ -2098,14 +2126,14 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                           type="number"
                           value={credit.capitalRestantDu || 0}
                           disabled
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-700"
                         />
                       </div>
                     </div>
 
                     {credit.montantInitial > 0 && credit.mensualite && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                        <p className="text-blue-900">
+                      <div className="bg-honey-50 border border-honey-200 rounded-xl p-3 text-sm">
+                        <p className="text-honey-700">
                           💡 <strong>Coût total du crédit :</strong>{' '}
                           {((credit.mensualite * credit.nombreMois) - credit.montantInitial).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                           {' '}({((((credit.mensualite * credit.nombreMois) / credit.montantInitial) - 1) * 100).toFixed(1)}% du capital emprunté)
@@ -2124,7 +2152,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                   e.preventDefault()
                   addCredit()
                 }}
-                className="w-full py-3 px-6 bg-orange-100 hover:bg-orange-200 text-orange-700 border-2 border-orange-300 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2 mt-6"
+                className="w-full py-3 px-6 bg-gray-900 hover:bg-gray-800 text-white border-2 border-gray-900 rounded-xl font-semibold transition-all duration-200 hover:shadow-md flex items-center justify-center gap-2 mt-6"
               >
                 <Plus className="h-5 w-5" />
                 Ajouter un crédit
@@ -2133,23 +2161,28 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
           </div>
         )}
 
-        {/* Actions at the end, inside the Card */}
-        <div className="flex justify-end gap-3 pt-6 mt-6 border-t">
+        </div>
+        {/* End section slide wrapper */}
+
+      </div>
+      {/* Actions - fixed bottom */}
+      <div className="sticky bottom-0 z-10 bg-white border-t border-gray-100 py-4 mt-auto -mx-8 px-8" style={{ marginBottom: '-20px' }}>
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={handleCancel}
-            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-300 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2"
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           >
             Annuler
           </button>
           <button
             type="submit"
-            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white border-2 border-green-500 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2"
+            className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors"
           >
-            Enregistrer et fermer
+            Enregistrer
           </button>
         </div>
-      </Card>
+      </div>
     </form>
 
     {/* Modal Associé */}
@@ -2159,27 +2192,12 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
       title="Ajouter un associé"
       size="xlarge"
     >
-      <div className="space-y-6">
-        {/* Recherche par dirigeant - Version collapsible */}
-        <RechercheEntrepriseParDirigeant
-          onAddEntreprises={handleAddEntreprisesAsAssocies}
-        />
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500 font-medium">OU créer manuellement</span>
-          </div>
-        </div>
-
-        {/* Formulaire manuel */}
-        <AssocieFormV2
-          onSubmit={handleCreateAssocie}
-          onCancel={() => setShowAssocieModal(false)}
-        />
-      </div>
+      <AssocieFormV2
+        onSubmit={handleCreateAssocie}
+        onCancel={() => setShowAssocieModal(false)}
+        showRechercheDirecteant={true}
+        onAddEntreprisesAsAssocies={handleAddEntreprisesAsAssocies}
+      />
     </Modal>
     </>
   )

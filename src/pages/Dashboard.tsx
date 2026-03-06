@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useStructuresContext } from '@/contexts/StructuresContext'
-import AnimatedButton from '@/components/ui/AnimatedButton'
 import Card from '@/components/ui/Card'
-import { Briefcase, FolderOpen, Building2, Sparkles, Loader2, Check } from 'lucide-react'
+import { Briefcase, FolderOpen, Building2, Sparkles, Loader2, Check, ArrowRight } from 'lucide-react'
 import { createDemoData } from '@/services/demoData'
 import api from '@/services/api'
 
@@ -15,8 +14,12 @@ const Dashboard: React.FC = () => {
   const [loadingDemo, setLoadingDemo] = useState(false)
   const [demoCreated, setDemoCreated] = useState(false)
   const [demoError, setDemoError] = useState('')
+  const [projetsCount, setProjetsCount] = useState(0)
 
-  // Fonction pour créer un projet via l'API
+  useEffect(() => {
+    api.get('/projets').then(res => setProjetsCount(res.data?.length || 0)).catch(() => {})
+  }, [demoCreated])
+
   const createProjet = async (data: any) => {
     const response = await api.post('/projets', data)
     return response.data
@@ -34,8 +37,8 @@ const Dashboard: React.FC = () => {
       setDemoCreated(true)
       setTimeout(() => setDemoCreated(false), 5000)
     } catch (error: any) {
-      console.error('Erreur création données demo:', error)
-      setDemoError(error.message || 'Erreur lors de la création des données')
+      console.error('Erreur creation donnees demo:', error)
+      setDemoError(error.message || 'Erreur lors de la creation des donnees')
     } finally {
       setLoadingDemo(false)
     }
@@ -50,7 +53,7 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent"></div>
       </div>
     )
   }
@@ -59,203 +62,206 @@ const Dashboard: React.FC = () => {
     return null
   }
 
+  const steps = [
+    {
+      number: '01',
+      title: 'Mes Associes',
+      description: 'Ajoutez vos associes, societes et structures juridiques.',
+      details: ['Personnes physiques', 'Societes (SCI, SARL...)', 'Gestion des parts sociales'],
+      icon: Briefcase,
+      path: '/profile',
+      buttonLabel: 'Acceder aux associes',
+      accent: 'coral' as const,
+    },
+    {
+      number: '02',
+      title: 'Mes Projets',
+      description: 'Renseignez vos projets immobiliers avec financements et travaux.',
+      details: ['Details du bien', 'Plan de financement', 'Analyse de rentabilite'],
+      icon: FolderOpen,
+      path: '/projets',
+      buttonLabel: 'Voir mes projets',
+      accent: 'honey' as const,
+    },
+    {
+      number: '03',
+      title: 'Mon Patrimoine',
+      description: 'Visionnez l\'ensemble de votre patrimoine a un instant T.',
+      details: ['Biens immobiliers', 'Credits en cours', 'Vue consolidee'],
+      icon: Building2,
+      path: '/patrimoine',
+      buttonLabel: 'Voir mon patrimoine',
+      accent: 'gray' as const,
+    },
+  ]
+
+  const accentStyles = {
+    coral: {
+      iconBg: 'bg-coral-100 group-hover:bg-coral-400',
+      iconText: 'text-coral-500 group-hover:text-white',
+      number: 'text-coral-200',
+      dot: 'bg-coral-300',
+      border: 'group-hover:border-coral-200',
+    },
+    honey: {
+      iconBg: 'bg-honey-100 group-hover:bg-honey-400',
+      iconText: 'text-honey-600 group-hover:text-gray-900',
+      number: 'text-honey-200',
+      dot: 'bg-honey-400',
+      border: 'group-hover:border-honey-200',
+    },
+    gray: {
+      iconBg: 'bg-gray-100 group-hover:bg-gray-800',
+      iconText: 'text-gray-500 group-hover:text-white',
+      number: 'text-gray-200',
+      dot: 'bg-gray-300',
+      border: 'group-hover:border-gray-300',
+    },
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Welcome & Quick Actions */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Bonjour
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Bienvenue sur votre espace MDI.fr. Suivez ces 3 etapes pour gerer votre patrimoine immobilier.
-            </p>
+    <div className="min-h-screen bg-[#F7F7F7]">
+      <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-10">
+          <p className="text-sm text-gray-500 mb-1">Workspace</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            Bonjour{user.prenom ? `, ${user.prenom}` : ''}
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Bienvenue sur votre espace MDI.fr
+          </p>
 
-            {/* Trois boutons principaux */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {/* Bouton Mes Associes */}
-              <Link to="/profile" className="block group">
-                <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full transform hover:-translate-y-1">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg transition-transform duration-300 group-hover:scale-110">
-                        <Briefcase className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
-                        Etape 1
-                      </span>
+          {/* KPIs */}
+          {(structures.length > 0 || projetsCount > 0) && (
+            <div className="flex items-center gap-4 mt-4">
+              {(() => {
+                const associes = structures.filter(s => s.type === 'PERSONNE_PHYSIQUE').length
+                const societes = structures.filter(s => s.type !== 'PERSONNE_PHYSIQUE').length
+                return (
+                  <>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-gray-200 text-sm">
+                      <Briefcase className="h-3.5 w-3.5 text-coral-400" />
+                      <span className="font-semibold text-gray-900">{associes}</span>
+                      <span className="text-gray-500">associé{associes > 1 ? 's' : ''}</span>
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      Mes Associes
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Ajoutez vos associes, societes et structures juridiques qui composeront vos projets.
-                    </p>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      <ul className="space-y-1">
-                        <li>- Personnes physiques (associes)</li>
-                        <li>- Societes (SCI, SARL, etc.)</li>
-                        <li>- Informations et detention</li>
-                        <li>- Gestion des parts sociales</li>
-                      </ul>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-gray-200 text-sm">
+                      <Building2 className="h-3.5 w-3.5 text-honey-500" />
+                      <span className="font-semibold text-gray-900">{societes}</span>
+                      <span className="text-gray-500">société{societes > 1 ? 's' : ''}</span>
                     </div>
-                    <div className="mt-4">
-                      <AnimatedButton
-                        onClick={() => navigate('/profile')}
-                        icon={Briefcase}
-                        variant="blue"
-                        size="md"
-                        className="w-full"
-                      >
-                        Accéder à mes associés
-                      </AnimatedButton>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-gray-200 text-sm">
+                      <FolderOpen className="h-3.5 w-3.5 text-gray-500" />
+                      <span className="font-semibold text-gray-900">{projetsCount}</span>
+                      <span className="text-gray-500">projet{projetsCount > 1 ? 's' : ''}</span>
                     </div>
-                  </div>
-                </Card>
-              </Link>
-
-              {/* Bouton Mes Projets */}
-              <Link to="/projets" className="block group">
-                <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full transform hover:-translate-y-1">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg transition-transform duration-300 group-hover:scale-110">
-                        <FolderOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
-                      </div>
-                      <span className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">
-                        Etape 2
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      Mes Projets Immobiliers
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Renseignez un ou plusieurs projets immobiliers avec leurs caracteristiques et financements.
-                    </p>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      <ul className="space-y-1">
-                        <li>- Details du bien immobilier</li>
-                        <li>- Plan de financement</li>
-                        <li>- Travaux et estimations</li>
-                        <li>- Analyse de rentabilite</li>
-                      </ul>
-                    </div>
-                    <div className="mt-4">
-                      <AnimatedButton
-                        onClick={() => navigate('/projets')}
-                        icon={FolderOpen}
-                        variant="green"
-                        size="md"
-                        className="w-full"
-                      >
-                        Voir mes projets
-                      </AnimatedButton>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-
-              {/* Bouton Mon Patrimoine */}
-              <Link to="/patrimoine" className="block group">
-                <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full transform hover:-translate-y-1">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-lg transition-transform duration-300 group-hover:scale-110">
-                        <Building2 className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <span className="px-3 py-1 bg-orange-600 text-white text-xs font-semibold rounded-full">
-                        Etape 3
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      Mon Patrimoine
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Visionnez l'ensemble de votre patrimoine immobilier et vos credits a un instant T.
-                    </p>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      <ul className="space-y-1">
-                        <li>- Biens immobiliers</li>
-                        <li>- Valeurs et loyers</li>
-                        <li>- Credits en cours</li>
-                        <li>- Vue d'ensemble consolidee</li>
-                      </ul>
-                    </div>
-                    <div className="mt-4">
-                      <AnimatedButton
-                        onClick={() => navigate('/patrimoine')}
-                        icon={Building2}
-                        variant="orange"
-                        size="md"
-                        className="w-full"
-                      >
-                        Voir mon patrimoine
-                      </AnimatedButton>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
+                  </>
+                )
+              })()}
             </div>
+          )}
+        </div>
 
-            {/* Bouton données de démonstration */}
-            {structures.length === 0 && (
-              <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-purple-200 dark:border-purple-800">
-                <div className="p-6">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                        <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          Découvrir avec des données d'exemple
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Créez automatiquement 3 associés, 2 sociétés et 3 projets immobiliers pour explorer l'application
-                        </p>
+        {/* 3 Steps */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {steps.map((step) => {
+            const accent = accentStyles[step.accent]
+            return (
+              <Link key={step.path} to={step.path} className="block group">
+                <Card className={`h-full hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${accent.border}`}>
+                  <div className="flex flex-col h-full">
+                    {/* Step number + icon */}
+                    <div className="flex items-start justify-between mb-6">
+                      <span className={`text-4xl font-bold ${accent.number} tracking-tighter`}>
+                        {step.number}
+                      </span>
+                      <div className={`p-2.5 rounded-xl transition-all duration-300 ${accent.iconBg}`}>
+                        <step.icon className={`h-5 w-5 transition-colors duration-300 ${accent.iconText}`} />
                       </div>
                     </div>
-                    <button
-                      onClick={handleCreateDemoData}
-                      disabled={loadingDemo || demoCreated}
-                      className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
-                        demoCreated
-                          ? 'bg-green-600 text-white'
-                          : 'bg-purple-600 hover:bg-purple-700 text-white'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {loadingDemo ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Création en cours...
-                        </>
-                      ) : demoCreated ? (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          Données créées !
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Créer les données d'exemple
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  {demoError && (
-                    <p className="mt-3 text-sm text-red-600 dark:text-red-400">{demoError}</p>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
 
+                    {/* Content */}
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      {step.description}
+                    </p>
+
+                    {/* Details list */}
+                    <ul className="space-y-1.5 mb-6 flex-1">
+                      {step.details.map((detail) => (
+                        <li key={detail} className="text-sm text-gray-400 flex items-center gap-2">
+                          <span className={`w-1 h-1 ${accent.dot} rounded-full flex-shrink-0`} />
+                          {detail}
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Button */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <span className="text-sm font-medium text-gray-900">{step.buttonLabel}</span>
+                      <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-900 group-hover:translate-x-1 transition-all duration-200" />
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            )
+          })}
         </div>
+
+        {/* Demo data banner */}
+        {structures.length === 0 && (
+          <Card className="border-gray-200">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gray-100 rounded-xl">
+                  <Sparkles className="h-5 w-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Decouvrir avec des donnees d'exemple
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Creez automatiquement 3 associes, 2 societes et 3 projets pour explorer l'application
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCreateDemoData}
+                disabled={loadingDemo || demoCreated}
+                className={`inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  demoCreated
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-900 hover:bg-gray-800 text-white'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {loadingDemo ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creation en cours...
+                  </>
+                ) : demoCreated ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Donnees creees !
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Creer les donnees d'exemple
+                  </>
+                )}
+              </button>
+            </div>
+            {demoError && (
+              <p className="mt-3 text-sm text-red-600">{demoError}</p>
+            )}
+          </Card>
+        )}
       </main>
     </div>
   )
 }
 
-export default Dashboard 
+export default Dashboard

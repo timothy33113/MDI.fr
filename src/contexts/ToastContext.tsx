@@ -26,8 +26,8 @@ interface ToastContextType {
 // Nombre maximum de toasts visibles
 const MAX_VISIBLE_TOASTS = 3
 
-// Duree par defaut (5 secondes)
-const DEFAULT_DURATION = 5000
+// Duree par defaut (3 secondes)
+const DEFAULT_DURATION = 3000
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 

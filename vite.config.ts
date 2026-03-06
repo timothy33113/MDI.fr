@@ -14,7 +14,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3002',
+        target: 'https://mdi-fr.vercel.app',
         changeOrigin: true,
       },
     },

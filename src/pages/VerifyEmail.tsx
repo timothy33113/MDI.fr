@@ -92,16 +92,16 @@ const VerifyEmail: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
+            <div className="mx-auto h-12 w-12 bg-gray-900 rounded-xl flex items-center justify-center">
               <Loader2 className="h-8 w-8 text-white animate-spin" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Verification en cours...
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-600">
               Veuillez patienter pendant que nous verifions votre adresse email.
             </p>
           </div>
@@ -113,23 +113,23 @@ const VerifyEmail: React.FC = () => {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center">
+            <div className="mx-auto h-12 w-12 bg-green-600 rounded-xl flex items-center justify-center">
               <CheckCircle className="h-8 w-8 text-white" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Email verifie
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-600">
               Votre adresse email a ete verifiee avec succes
             </p>
           </div>
 
           <Card>
             <div className="text-center space-y-4">
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600">
                 Vous pouvez maintenant profiter de toutes les fonctionnalites de MDI.fr.
               </p>
               <Link to="/">
@@ -147,23 +147,23 @@ const VerifyEmail: React.FC = () => {
   // Resend success state
   if (resendSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center">
+            <div className="mx-auto h-12 w-12 bg-green-600 rounded-xl flex items-center justify-center">
               <CheckCircle className="h-8 w-8 text-white" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Email envoye
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-600">
               Un nouveau lien de verification a ete envoye
             </p>
           </div>
 
           <Card>
             <div className="text-center space-y-4">
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600">
                 Verifiez votre boite de reception et cliquez sur le lien de verification.
               </p>
               <Link to="/">
@@ -180,16 +180,16 @@ const VerifyEmail: React.FC = () => {
 
   // Error state
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-red-600 rounded-lg flex items-center justify-center">
+          <div className="mx-auto h-12 w-12 bg-red-600 rounded-xl flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-white" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Echec de la verification
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-600">
             {error}
           </p>
         </div>
@@ -198,7 +198,7 @@ const VerifyEmail: React.FC = () => {
           <div className="text-center space-y-4">
             {expired && user ? (
               <>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600">
                   Votre lien de verification a expire. Cliquez ci-dessous pour recevoir un nouveau lien.
                 </p>
                 <Button
@@ -220,7 +220,7 @@ const VerifyEmail: React.FC = () => {
                 </Button>
               </>
             ) : (
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600">
                 Le lien de verification est invalide ou a deja ete utilise.
               </p>
             )}

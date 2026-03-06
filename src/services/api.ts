@@ -25,8 +25,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expiré ou invalide
+    if (error.response?.status === 401 && !import.meta.env.DEV) {
+      // Token expiré ou invalide (skip in dev mode)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

@@ -84,7 +84,7 @@ const updateProjetSchema = z.object({
     devisObtenu: z.boolean().default(false),
     dateDebutPrevue: z.string().optional().nullable(),
   })).optional(),
-  photos: z.array(z.union([z.string(), z.object({ url: z.string() }).passthrough()])).optional(),
+  photos: z.array(z.union([z.string(), z.object({ url: z.string(), position: z.number().optional() }).passthrough()])).optional(),
   photoCouverture: z.string().optional().nullable(),
   comparables: z.array(z.object({
     url: z.string(),
@@ -201,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         photos = await sql`
           SELECT * FROM photos_v2
           WHERE bien_immobilier_id = ${p.bien_id}
-          ORDER BY created_at
+          ORDER BY position, created_at
         `;
       }
 
@@ -263,7 +263,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             description: ph.description,
             type: ph.type,
             size: ph.size,
-            mimeType: ph.mime_type
+            mimeType: ph.mime_type,
+            position: ph.position ?? 0
           }))
         } : null,
         financement: p.financement_id ? {
@@ -452,12 +453,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const size = typeof photo === 'string' ? 0 : (photo.size || 0);
             const mimeType = typeof photo === 'string' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
             const photoDescription = typeof photo === 'string' ? null : (photo.description || null);
+            const position = typeof photo === 'string' ? i : (photo.position ?? i);
 
             await sql`
               INSERT INTO photos_v2 (
-                bien_immobilier_id, url, filename, type, size, mime_type, description
+                bien_immobilier_id, url, filename, type, size, mime_type, description, position
               ) VALUES (
-                ${bienId}, ${url}, ${filename}, ${type}, ${size}, ${mimeType}, ${photoDescription}
+                ${bienId}, ${url}, ${filename}, ${type}, ${size}, ${mimeType}, ${photoDescription}, ${position}
               )
             `;
           }

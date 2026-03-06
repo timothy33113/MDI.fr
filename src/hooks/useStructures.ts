@@ -110,9 +110,10 @@ export const useStructures = () => {
     });
   }, []);
 
-  const refreshStructures = useCallback(() => {
+  const refreshStructures = useCallback((): Structure[] => {
     const loaded = loadFromStorage();
     setStructures(loaded);
+    return loaded;
   }, []);
 
   return {

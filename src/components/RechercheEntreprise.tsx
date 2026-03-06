@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Search, Building2, Loader2, ChevronDown } from 'lucide-react'
+import { Search, Building2, Loader2, ChevronDown, Sparkles } from 'lucide-react'
 import { searchEntrepriseByName, searchEntrepriseBySirenOrSiret } from '@/services/entrepriseApi'
 
 interface RechercheEntrepriseProps {
@@ -75,24 +75,24 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
   }
 
   return (
-    <div className="border border-blue-200 rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="border border-honey-200 rounded-xl overflow-hidden bg-white shadow-sm">
       {/* Header collapsible */}
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 flex items-center justify-between transition-all duration-200"
+        className="w-full px-4 py-3.5 bg-gradient-to-r from-coral-50 via-honey-50 to-honey-100 hover:from-coral-100 hover:via-honey-100 hover:to-honey-150 flex items-center justify-between transition-all duration-200"
       >
         <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 p-2 bg-white rounded-lg shadow-sm">
-            <Search className="h-5 w-5 text-blue-600" />
+          <div className="flex-shrink-0 p-2 bg-white/80 rounded-xl shadow-sm">
+            <Sparkles className="h-5 w-5 text-coral-500" />
           </div>
           <div className="text-left">
-            <p className="font-semibold text-gray-900 text-sm">Rechercher une entreprise</p>
-            <p className="text-xs text-gray-600">Importer depuis l'API entreprise</p>
+            <p className="font-semibold text-gray-900 text-sm">Pré-remplir avec un SIREN ou nom</p>
+            <p className="text-xs text-gray-600">Les informations de la société seront importées automatiquement</p>
           </div>
         </div>
         <ChevronDown
-          className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+          className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
             isExpanded ? 'rotate-180' : ''
           }`}
         />
@@ -100,10 +100,10 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
 
       {/* Contenu extensible */}
       {isExpanded && (
-        <div className="p-4 bg-white border-t border-blue-100">
+        <div className="p-4 bg-white border-t border-gray-200">
           <div className="mb-4">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-indigo-600" />
+              <Building2 className="h-4 w-4 text-gray-700" />
               Recherchez par nom ou numéro SIREN
             </p>
           </div>
@@ -120,7 +120,7 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ex: Dupont SARL ou 123456789"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400"
               />
             </div>
 
@@ -128,7 +128,7 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
               type="button"
               onClick={handleSearch}
               disabled={isSearching || !searchQuery.trim()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               {isSearching ? (
                 <>
@@ -146,7 +146,7 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
 
           {/* Erreur */}
           {searchError && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-sm text-red-700">{searchError}</p>
             </div>
           )}
@@ -164,10 +164,10 @@ const RechercheEntreprise: React.FC<RechercheEntrepriseProps> = ({
                     key={entreprise.siren || index}
                     type="button"
                     onClick={() => handleSelectEntreprise(entreprise)}
-                    className="w-full text-left p-4 bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                    className="w-full text-left p-4 bg-white border-2 border-gray-200 hover:border-gray-900 hover:bg-gray-50 rounded-xl transition-all"
                   >
                     <div className="flex items-start gap-3">
-                      <Building2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <Building2 className="h-5 w-5 text-gray-900 mt-0.5 flex-shrink-0" />
 
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 truncate mb-1">

@@ -3,8 +3,10 @@ import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocu
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Camera, X, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3, Star } from 'lucide-react'
+import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 import api from '@/services/api'
+import { useToast } from '@/contexts/ToastContext'
+import SortablePhotoGrid from '@/components/ui/SortablePhotoGrid'
 
 interface ProjetFormV2Props {
   structures: Structure[]
@@ -36,6 +38,7 @@ interface Travaux {
 
 const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCancel, onGeneratePDF, initialProjet }) => {
   const [activeTab, setActiveTab] = useState<TabType>('general')
+  const toast = useToast()
 
   // Onglet 1: Informations générales
   const [nom, setNom] = useState(initialProjet?.nom || '')
@@ -44,9 +47,28 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   const [codePostal, setCodePostal] = useState(initialProjet?.bienImmobilier?.codePostal || '')
   const [ville, setVille] = useState(initialProjet?.bienImmobilier?.ville || '')
   const [typeBien, setTypeBien] = useState(initialProjet?.bienImmobilier?.type || '')
-  const [photos, setPhotos] = useState<string[]>(
+  const [dpe, setDpe] = useState(initialProjet?.bienImmobilier?.dpe || '')
+  const [ges, setGes] = useState(initialProjet?.bienImmobilier?.ges || '')
+  const [taxeFonciere, setTaxeFonciere] = useState(Number(initialProjet?.bienImmobilier?.taxeFonciere) || 0)
+  interface PhotoItem {
+    id: string
+    url: string
+    filename: string
+    description?: string
+    type: string
+    position: number
+    isUploading?: boolean
+  }
+  const [photos, setPhotos] = useState<PhotoItem[]>(
     initialProjet?.bienImmobilier?.photos
-      ? initialProjet.bienImmobilier.photos.map(p => p.url)
+      ? initialProjet.bienImmobilier.photos.map((p, i) => ({
+          id: p.id || `photo-${i}-${Date.now()}`,
+          url: p.url,
+          filename: p.filename || `photo_${i}.jpg`,
+          description: p.description,
+          type: p.type || 'Autre',
+          position: (p as any).position ?? i,
+        }))
       : []
   )
   const [photoCouverture, setPhotoCouverture] = useState<string | null>(
@@ -93,15 +115,46 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     })) || []
   )
 
-  // Onglet 5: Financement
-  const [financement, setFinancement] = useState({
-    prixAchat: Number(initialProjet?.financement?.prixAchat) || 0,
-    fraisNotaire: Number(initialProjet?.financement?.fraisNotaire) || 0,
-    montantTravaux: Number(initialProjet?.financement?.montantTravaux) || 0,
-    apportPersonnel: Number(initialProjet?.financement?.apportPersonnel) || 0,
-    dureeCredit: Number(initialProjet?.financement?.dureeCredit) || 20,
-    tauxInteretEstime: Number(initialProjet?.financement?.tauxInteretEstime) || 3.5
+  // Onglet 5: Financement (multi-scénarios)
+  interface Scenario {
+    id: string
+    nom: string
+    prixAchat: number
+    fraisNotaire: number
+    fraisAgence: number
+    montantTravaux: number
+    apportPersonnel: number
+    dureeCredit: number
+    tauxInteretEstime: number
+    typePret: 'Amortissable' | 'In_Fine' | 'Palier' | 'Autre'
+  }
+
+  const createScenario = (index: number, initial?: any): Scenario => ({
+    id: String(Date.now()) + index,
+    nom: `Hypothèse ${index}`,
+    prixAchat: Number(initial?.prixAchat) || 0,
+    fraisNotaire: Number(initial?.fraisNotaire) || 0,
+    fraisAgence: Number(initial?.fraisAgence) || 0,
+    montantTravaux: Number(initial?.montantTravaux) || 0,
+    apportPersonnel: Number(initial?.apportPersonnel) || 0,
+    dureeCredit: Number(initial?.dureeCredit) || 20,
+    tauxInteretEstime: Number(initial?.tauxInteretEstime) || 3.5,
+    typePret: initial?.typePret || 'Amortissable' as 'Amortissable' | 'In_Fine' | 'Palier' | 'Autre',
   })
+
+  const [scenarios, setScenarios] = useState<Scenario[]>([
+    createScenario(1, initialProjet?.financement)
+  ])
+  const [activeScenarioId, setActiveScenarioId] = useState(scenarios[0].id)
+
+  // Getter pour le scénario actif
+  const activeScenario = scenarios.find(s => s.id === activeScenarioId) || scenarios[0]
+  const updateActiveScenario = (updates: Partial<Scenario>) => {
+    setScenarios(prev => prev.map(s => s.id === activeScenarioId ? { ...s, ...updates } : s))
+  }
+
+  // Compatibilité: le premier scénario sert de "financement" principal
+  const financement = scenarios[0]
 
   // Import Leboncoin
   const [isLeboncoinExpanded, setIsLeboncoinExpanded] = useState(false)
@@ -229,7 +282,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   // Calculer automatiquement le montant total des travaux
   useEffect(() => {
     const montantTotal = travaux.reduce((sum, t) => sum + t.montant, 0)
-    setFinancement(prev => ({ ...prev, montantTravaux: montantTotal }))
+    setScenarios(prev => prev.map(s => ({ ...s, montantTravaux: montantTotal })))
   }, [travaux])
 
   // Écouter la création de nouvelles structures et les sélectionner automatiquement
@@ -325,79 +378,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
     ))
   }
 
-  // Compresser une image via canvas (max 1200px, JPEG 0.7)
-  const compressImage = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      const objectUrl = URL.createObjectURL(blob)
-      img.onload = () => {
-        const MAX = 1200
-        let w = img.width
-        let h = img.height
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
-          else { w = Math.round(w * MAX / h); h = MAX }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, w, h)
-        const compressed = canvas.toDataURL('image/jpeg', 0.7)
-        URL.revokeObjectURL(objectUrl)
-        resolve(compressed)
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl)
-        reject(new Error('Format non supporte par le navigateur'))
-      }
-      img.src = objectUrl
-    })
-  }
-
-  // Photos
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-
-    Array.from(files).forEach(async file => {
-      // Detecter HEIC et guider l'utilisateur
-      if (file.name.match(/\.(heic|heif)$/i) || file.type === 'image/heic' || file.type === 'image/heif') {
-        alert(
-          `Le format HEIC n'est pas supporte par les navigateurs.\n\n` +
-          `Pour convertir sur Mac :\n` +
-          `• Ouvrir la photo dans Apercu\n` +
-          `• Fichier > Exporter > Format : JPEG\n\n` +
-          `Sur iPhone :\n` +
-          `• Reglages > Appareil photo > Formats > Le plus compatible`
-        )
-        return
-      }
-
-      if (!file.type.startsWith('image/')) {
-        alert(`Le fichier "${file.name}" n'est pas une image.`)
-        return
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        alert(`Le fichier "${file.name}" depasse 15 MB.`)
-        return
-      }
-
-      try {
-        const compressed = await compressImage(file)
-        setPhotos(prev => [...prev, compressed])
-      } catch (err: any) {
-        console.error('Erreur traitement photo:', err)
-        alert(`Impossible de traiter "${file.name}". Utilisez un format JPG ou PNG.`)
-      }
-    })
-
-    e.target.value = ''
-  }
-
-  const removePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index))
-  }
+  // Photos (gérées par SortablePhotoGrid)
 
   // Import depuis Leboncoin
   const handleLeboncoinImport = async () => {
@@ -431,11 +412,11 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       }
       if (data.price) {
         const estimatedNotaryFees = data.price * 0.08 // Estimation 8% de frais de notaire
-        setFinancement(prev => ({
-          ...prev,
+        setScenarios(prev => prev.map(s => ({
+          ...s,
           prixAchat: data.price,
           fraisNotaire: estimatedNotaryFees
-        }))
+        })))
       }
 
       // Adresse - gérer les deux formats (string ou objet)
@@ -477,8 +458,14 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
           uploadedAt: new Date()
         }))
 
-        // Convertir en base64 data URLs pour l'affichage temporaire
-        setPhotos(data.images)
+        setPhotos(photosImportees.map((p: any, i: number) => ({
+          id: p.id,
+          url: p.url,
+          filename: p.filename,
+          description: p.description,
+          type: p.type,
+          position: i,
+        })))
 
         console.log(`✅ ${photosImportees.length} photos importées depuis Leboncoin`)
       }
@@ -712,19 +699,38 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         etatActuel: bienPrincipal?.etat || 'Bon',
         destinationBien: elementsBien.some(e => e.enLocation) ? 'Location' : 'Residence_Principale',
         loyerMensuelEstime: elementsBien.reduce((sum, e) => sum + (e.loyerMensuel || 0), 0),
-        chargesMensuelles: 0
+        chargesMensuelles: 0,
+        dpe: dpe || undefined,
+        ges: ges || undefined,
+        taxeFonciere: taxeFonciere || 0,
       },
       elementsBien: elementsBien.length > 0 ? elementsBien.map(({ id, ...rest }) => rest) : undefined,
       travaux: travaux.length > 0 ? travaux.map(({ id, ...rest }) => rest) : undefined,
-      photos: photos.length > 0 ? photos : undefined,
+      photos: photos.length > 0 ? photos.map(p => ({
+        url: p.url,
+        filename: p.filename,
+        description: p.description,
+        type: p.type,
+        position: p.position,
+      })) : undefined,
       photoCouverture: photoCouverture || undefined,
       comparables: comparables.filter(c => !c.loading && !c.error).map(({ loading, error, ...rest }) => rest),
-      financement
+      financement: {
+        prixAchat: financement.prixAchat,
+        fraisNotaire: financement.fraisNotaire,
+        fraisAgence: financement.fraisAgence,
+        montantTravaux: financement.montantTravaux,
+        apportPersonnel: financement.apportPersonnel,
+        dureeCredit: financement.dureeCredit,
+        tauxInteretEstime: financement.tauxInteretEstime,
+        typePret: financement.typePret,
+      }
     }
 
     console.log('📦 Données du projet à enregistrer:', data)
     console.log('🔄 Appel de onSubmit...')
     onSubmit(data)
+    toast.success('Projet enregistré avec succès')
     console.log('✅ onSubmit appelé avec succès')
   }
 
@@ -744,8 +750,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         <h2 className="text-2xl font-bold text-gray-900 mb-6">{initialProjet ? 'Modifier le projet' : 'Créer un nouveau projet'}</h2>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-4 flex-wrap">
+        <div className="mb-6">
+          <nav className="flex space-x-2 flex-wrap gap-y-2">
             {tabs.map(tab => {
               const Icon = tab.icon
               return (
@@ -753,10 +759,10 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  className={`flex items-center gap-2 py-2 px-3 font-medium text-sm whitespace-nowrap transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'bg-gray-900 text-white rounded-xl'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -771,16 +777,16 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         {activeTab === 'general' && (
           <div className="space-y-4">
             {/* Import Leboncoin collapsible */}
-            <div className="border border-blue-200 rounded-lg overflow-hidden bg-white shadow-sm">
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
               {/* Header collapsible */}
               <button
                 type="button"
                 onClick={() => setIsLeboncoinExpanded(!isLeboncoinExpanded)}
-                className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 flex items-center justify-between transition-all duration-200"
+                className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-all duration-200"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 p-2 bg-white rounded-lg shadow-sm">
-                    <LinkIcon className="h-5 w-5 text-blue-600" />
+                  <div className="flex-shrink-0 p-2 bg-white rounded-xl shadow-sm">
+                    <LinkIcon className="h-5 w-5 text-gray-900" />
                   </div>
                   <div className="text-left">
                     <p className="font-semibold text-gray-900 text-sm">Importer depuis Leboncoin</p>
@@ -796,13 +802,13 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
               {/* Contenu extensible */}
               {isLeboncoinExpanded && (
-                <div className="p-4 bg-white border-t border-blue-100">
+                <div className="p-4 bg-white border-t border-gray-200">
                   <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-900 font-medium">
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                      <p className="text-sm text-gray-900 font-medium">
                         Comment ça marche ?
                       </p>
-                      <ol className="list-decimal list-inside text-xs text-blue-800 mt-2 space-y-1">
+                      <ol className="list-decimal list-inside text-xs text-gray-700 mt-2 space-y-1">
                         <li>Copiez l'URL d'une annonce immobilière Leboncoin</li>
                         <li>Collez-la dans le champ ci-dessous</li>
                         <li>Cliquez sur "Analyser" pour importer automatiquement les informations</li>
@@ -822,7 +828,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                         type="button"
                         onClick={handleLeboncoinImport}
                         disabled={isLoadingLeboncoin || !leboncoinUrl.trim()}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <LinkIcon className="h-4 w-4" />
                         {isLoadingLeboncoin ? 'Analyse en cours...' : 'Analyser le projet'}
@@ -830,8 +836,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     </div>
 
                     {isLoadingLeboncoin && (
-                      <div className="bg-gray-50 rounded-lg p-3 text-center">
-                        <div className="animate-spin inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
+                      <div className="bg-gray-50 rounded-xl p-3 text-center">
+                        <div className="animate-spin inline-block w-5 h-5 border-2 border-gray-900 border-t-transparent rounded-full mb-2"></div>
                         <p className="text-xs text-gray-600">Récupération des informations en cours...</p>
                       </div>
                     )}
@@ -855,7 +861,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-gray-900/10 focus:border-gray-400"
                 placeholder="Décrivez brièvement votre projet..."
               />
             </div>
@@ -883,135 +889,58 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   onChange={(e) => setVille(e.target.value)}
                 />
               </div>
-            </div>
 
-            <div className="border-t pt-4">
-              <h3 className="text-xl font-semibold mb-4">Photo de couverture</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Cette photo sera affichee en page de garde du dossier bancaire
-              </p>
-
-              {photoCouverture ? (
-                <div className="relative inline-block">
-                  <img
-                    src={photoCouverture}
-                    alt="Photo de couverture"
-                    className="w-64 h-40 object-cover rounded-lg border-2 border-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPhotoCouverture(null)}
-                    className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">DPE</label>
+                  <select
+                    value={dpe}
+                    onChange={(e) => setDpe(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
                   >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                    <Star className="h-3 w-3" /> Couverture
-                  </div>
+                    <option value="">-</option>
+                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <label className="cursor-pointer inline-block">
-                    <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                      <Camera className="h-8 w-8 text-blue-400 mx-auto mb-1" />
-                      <p className="text-sm text-blue-600">Telecharger une photo</p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        if (!file.type.startsWith('image/')) return
-                        try {
-                          const compressed = await compressImage(file)
-                          setPhotoCouverture(compressed)
-                        } catch (err) {
-                          console.error('Erreur compression photo couverture:', err)
-                        }
-                        e.target.value = ''
-                      }}
-                      className="hidden"
-                    />
-                  </label>
 
-                  {photos.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Ou choisir parmi les photos existantes :</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {photos.map((photo, i) => (
-                          <img
-                            key={i}
-                            src={photo}
-                            alt={`Photo ${i + 1}`}
-                            className="w-20 h-14 object-cover rounded cursor-pointer hover:ring-2 ring-blue-500 border border-gray-200"
-                            onClick={() => setPhotoCouverture(photo)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">GES</label>
+                  <select
+                    value={ges}
+                    onChange={(e) => setGes(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">-</option>
+                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
+
+                <Input
+                  label="Taxe fonciere (EUR/an)"
+                  type="number"
+                  min="0"
+                  value={taxeFonciere || ''}
+                  onChange={(e) => setTaxeFonciere(Number(e.target.value) || 0)}
+                  placeholder="0"
+                />
+              </div>
             </div>
 
             <div className="border-t pt-4">
               <h3 className="text-xl font-semibold mb-4">Photos du bien</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Ajoutez des photos qui pourront être jointes au dossier bancaire
+                Ajoutez des photos et glissez-les pour choisir l'ordre dans le dossier bancaire. Cliquez sur l'étoile pour définir la photo de couverture.
               </p>
-
-              <div className="space-y-4">
-                {/* Upload button */}
-                <div>
-                  <label className="cursor-pointer">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                      <Camera className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">
-                        Cliquez pour ajouter des photos
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        JPG, PNG ou WEBP (max 5MB par photo)
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-
-                {/* Photos preview */}
-                {photos.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {photos.map((photo, index) => (
-                      <div key={index} className="relative group w-full h-32 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden">
-                        <img
-                          src={photo}
-                          alt={`Photo ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {photos.length > 0 && (
-                  <div className="text-sm text-gray-600">
-                    {photos.length} photo{photos.length > 1 ? 's' : ''} ajoutée{photos.length > 1 ? 's' : ''}
-                  </div>
-                )}
-              </div>
+              <SortablePhotoGrid
+                photos={photos}
+                onChange={setPhotos}
+                coverPhotoUrl={photoCouverture}
+                onCoverPhotoChange={setPhotoCouverture}
+              />
             </div>
           </div>
         )}
@@ -1029,7 +958,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
               <button
                 type="button"
                 onClick={addPorteur}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center gap-2"
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Ajouter un porteur
@@ -1046,7 +975,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     <select
                       value={porteur.structureId}
                       onChange={(e) => updatePorteur(index, 'structureId', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                     >
                       <option value="">Sélectionnez une structure</option>
                       {structures.map(structure => (
@@ -1072,7 +1001,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     <button
                       type="button"
                       onClick={() => removePorteur(index)}
-                      className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
+                      className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                       title="Supprimer ce porteur"
                     >
                       <Trash2 className="h-5 w-5" />
@@ -1092,7 +1021,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
               <button
                 type="button"
                 onClick={addElementBien}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center gap-2"
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Ajouter un élément
@@ -1100,13 +1029,13 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
             </div>
 
             {elementsBien.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                 <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">Aucun élément ajouté</p>
                 <button
                   type="button"
                   onClick={addElementBien}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg inline-flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Ajouter le premier élément
@@ -1122,7 +1051,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                         <button
                           type="button"
                           onClick={() => removeElementBien(element.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                           title="Supprimer cet élément"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -1137,7 +1066,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                           <select
                             value={element.type}
                             onChange={(e) => updateElementBien(element.id, 'type', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                           >
                             <option value="Appartement">Appartement</option>
                             <option value="Local_Commercial">Local Commercial</option>
@@ -1155,7 +1084,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                           <select
                             value={element.etat}
                             onChange={(e) => updateElementBien(element.id, 'etat', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                           >
                             <option value="Neuf">Neuf</option>
                             <option value="Bon">Bon état</option>
@@ -1206,7 +1135,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                               type="checkbox"
                               checked={element.enLocation}
                               onChange={(e) => updateElementBien(element.id, 'enLocation', e.target.checked)}
-                              className="rounded border-gray-300"
+                              className="rounded border-gray-200"
                             />
                             <span className="text-sm font-medium text-gray-700">Actuellement en location</span>
                           </label>
@@ -1219,7 +1148,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
             )}
 
             {elementsBien.length > 0 && (
-              <Card className="p-4 bg-blue-50">
+              <Card className="p-4 bg-gray-50">
                 <h4 className="font-medium mb-2">Récapitulatif</h4>
                 <div className="text-sm text-gray-700 space-y-1">
                   <p>Nombre d'éléments: {elementsBien.length}</p>
@@ -1321,13 +1250,13 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
               <div>
                 <h3 className="text-xl font-semibold">Travaux prévus</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Montant total: <span className="font-semibold text-blue-600">{travaux.reduce((sum, t) => sum + t.montant, 0).toLocaleString('fr-FR')} €</span>
+                  Montant total: <span className="font-semibold text-gray-900">{travaux.reduce((sum, t) => sum + t.montant, 0).toLocaleString('fr-FR')} €</span>
                 </p>
               </div>
               <button
                 type="button"
                 onClick={addTravaux}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center gap-2"
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Ajouter des travaux
@@ -1335,13 +1264,13 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
             </div>
 
             {travaux.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                 <Hammer className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">Aucun travaux prévu</p>
                 <button
                   type="button"
                   onClick={addTravaux}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg inline-flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Ajouter les premiers travaux
@@ -1368,7 +1297,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                             value={item.description}
                             onChange={(e) => updateTravaux(item.id, 'description', e.target.value)}
                             rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl"
                             placeholder="Détails des travaux..."
                           />
                         </div>
@@ -1385,7 +1314,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                       <button
                         type="button"
                         onClick={() => removeTravaux(item.id)}
-                        className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
+                        className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                         title="Supprimer ces travaux"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -1398,34 +1327,108 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
           </div>
         )}
 
-        {/* Onglet 5: Financement */}
+        {/* Onglet 5: Financement (multi-scénarios) */}
         {activeTab === 'financement' && (
           <div className="space-y-4">
             <h3 className="text-xl font-semibold mb-4">Plan de financement</h3>
+
+            {/* Scenario tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {scenarios.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setActiveScenarioId(s.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-colors ${
+                    activeScenarioId === s.id
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {s.nom}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const newScenario = createScenario(scenarios.length + 1)
+                  // Copier les valeurs du scénario actif comme base
+                  newScenario.prixAchat = activeScenario.prixAchat
+                  newScenario.fraisNotaire = activeScenario.fraisNotaire
+                  newScenario.fraisAgence = activeScenario.fraisAgence
+                  newScenario.montantTravaux = activeScenario.montantTravaux
+                  setScenarios(prev => [...prev, newScenario])
+                  setActiveScenarioId(newScenario.id)
+                }}
+                className="px-3 py-2 text-sm font-medium rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 border border-dashed border-gray-300 whitespace-nowrap transition-colors"
+              >
+                <Plus className="h-4 w-4 inline -mt-0.5 mr-1" />
+                Hypothèse
+              </button>
+            </div>
+
+            {/* Delete scenario button */}
+            {scenarios.length > 1 && (
+              <div className="flex items-center justify-between">
+                <input
+                  type="text"
+                  value={activeScenario.nom}
+                  onChange={(e) => updateActiveScenario({ nom: e.target.value })}
+                  className="text-sm font-medium text-gray-700 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-gray-900 focus:outline-none px-1 py-0.5"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const remaining = scenarios.filter(s => s.id !== activeScenarioId)
+                    setScenarios(remaining)
+                    setActiveScenarioId(remaining[0].id)
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Supprimer
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Prix d'achat (€)"
                 type="number"
                 min="0"
-                value={financement.prixAchat}
-                onChange={(e) => setFinancement({ ...financement, prixAchat: Number(e.target.value) })}
+                value={activeScenario.prixAchat || ''}
+                onChange={(e) => {
+                  const prix = Number(e.target.value)
+                  updateActiveScenario({
+                    prixAchat: prix,
+                    fraisNotaire: Math.round(prix * 0.1)
+                  })
+                }}
               />
 
               <Input
-                label="Frais de notaire (€)"
+                label="Frais de notaire ~10% (€)"
                 type="number"
                 min="0"
-                value={financement.fraisNotaire}
-                onChange={(e) => setFinancement({ ...financement, fraisNotaire: Number(e.target.value) })}
+                value={activeScenario.fraisNotaire || ''}
+                onChange={(e) => updateActiveScenario({ fraisNotaire: Number(e.target.value) })}
+              />
+
+              <Input
+                label="Frais d'agence (€)"
+                type="number"
+                min="0"
+                value={activeScenario.fraisAgence || ''}
+                onChange={(e) => updateActiveScenario({ fraisAgence: Number(e.target.value) || 0 })}
+                placeholder="0"
               />
 
               <Input
                 label="Montant travaux (€)"
                 type="number"
                 min="0"
-                value={financement.montantTravaux}
-                onChange={(e) => setFinancement({ ...financement, montantTravaux: Number(e.target.value) })}
+                value={activeScenario.montantTravaux}
+                onChange={(e) => updateActiveScenario({ montantTravaux: Number(e.target.value) })}
                 disabled={travaux.length > 0}
                 helperText={travaux.length > 0 ? "Calculé automatiquement depuis l'onglet Travaux" : ""}
               />
@@ -1434,8 +1437,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 label="Apport personnel (€)"
                 type="number"
                 min="0"
-                value={financement.apportPersonnel}
-                onChange={(e) => setFinancement({ ...financement, apportPersonnel: Number(e.target.value) })}
+                value={activeScenario.apportPersonnel}
+                onChange={(e) => updateActiveScenario({ apportPersonnel: Number(e.target.value) })}
               />
 
               <Input
@@ -1443,8 +1446,8 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 type="number"
                 min="1"
                 max="30"
-                value={financement.dureeCredit}
-                onChange={(e) => setFinancement({ ...financement, dureeCredit: Number(e.target.value) })}
+                value={activeScenario.dureeCredit}
+                onChange={(e) => updateActiveScenario({ dureeCredit: Number(e.target.value) })}
               />
 
               <Input
@@ -1453,32 +1456,50 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 min="0"
                 max="10"
                 step="0.1"
-                value={financement.tauxInteretEstime}
-                onChange={(e) => setFinancement({ ...financement, tauxInteretEstime: Number(e.target.value) })}
+                value={activeScenario.tauxInteretEstime}
+                onChange={(e) => updateActiveScenario({ tauxInteretEstime: Number(e.target.value) })}
               />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type de prêt</label>
+                <select
+                  value={activeScenario.typePret}
+                  onChange={(e) => updateActiveScenario({ typePret: e.target.value as Scenario['typePret'] })}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value="Amortissable">Amortissable</option>
+                  <option value="In_Fine">In Fine</option>
+                  <option value="Palier">Palier</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </div>
             </div>
 
-            <Card className="p-4 bg-blue-50 mt-6">
-              <h4 className="font-medium mb-3">Récapitulatif financier</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Coût total du projet:</span>
-                  <span className="font-medium">
-                    {(financement.prixAchat + financement.fraisNotaire + financement.montantTravaux).toLocaleString('fr-FR')} €
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Apport personnel:</span>
-                  <span className="font-medium">{financement.apportPersonnel.toLocaleString('fr-FR')} €</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Montant à emprunter:</span>
-                  <span className="font-semibold text-blue-600">
-                    {Math.max(0, financement.prixAchat + financement.fraisNotaire + financement.montantTravaux - financement.apportPersonnel).toLocaleString('fr-FR')} €
-                  </span>
-                </div>
-              </div>
-            </Card>
+            {/* Récap inline du scénario actif */}
+            {(() => {
+              const s = activeScenario
+              const coutTotal = s.prixAchat + s.fraisNotaire + (s.fraisAgence || 0) + s.montantTravaux
+              const montantEmprunt = Math.max(0, coutTotal - s.apportPersonnel)
+              return (
+                <Card className="p-4 bg-gray-50 mt-6">
+                  <h4 className="font-medium mb-3">Récapitulatif financier</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Coût total du projet:</span>
+                      <span className="font-medium">{coutTotal.toLocaleString('fr-FR')} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Apport personnel:</span>
+                      <span className="font-medium">{s.apportPersonnel.toLocaleString('fr-FR')} €</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-semibold">Montant à emprunter:</span>
+                      <span className="font-semibold text-gray-900">{montantEmprunt.toLocaleString('fr-FR')} €</span>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })()}
           </div>
         )}
 
@@ -1489,52 +1510,137 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
             {/* Calculs automatiques */}
             {(() => {
-              // Calcul du coût total du projet
-              const coutTotal = financement.prixAchat + financement.fraisNotaire + financement.montantTravaux
-              const montantCredit = Math.max(0, coutTotal - financement.apportPersonnel)
-
-              // Calcul des loyers potentiels (tous les loyers, actuels et estimatifs)
+              // Loyers (communs à tous les scénarios)
               const loyersMensuelsTotal = elementsBien.reduce((sum, el) =>
                 sum + (el.loyerMensuel || 0), 0
               )
               const loyersAnnuelsTotal = loyersMensuelsTotal * 12
-
-              // Séparation loyers actuels / estimatifs
               const loyersActuels = elementsBien.filter(el => el.enLocation && el.loyerMensuel)
               const loyersEstimatifs = elementsBien.filter(el => !el.enLocation && el.loyerMensuel)
-
-              // Règle des 70% (règle bancaire)
               const loyerNetBancaire = loyersAnnuelsTotal * 0.7
               const loyerNetMensuelBancaire = loyerNetBancaire / 12
 
-              // Calcul de la mensualité de crédit (formule d'amortissement)
-              const tauxMensuel = (financement.tauxInteretEstime / 100) / 12
-              const nombreMois = financement.dureeCredit * 12
-              const mensualiteCredit = montantCredit > 0 && tauxMensuel > 0
-                ? montantCredit * (tauxMensuel * Math.pow(1 + tauxMensuel, nombreMois)) / (Math.pow(1 + tauxMensuel, nombreMois) - 1)
-                : 0
+              // Calculs par scénario
+              const calcScenario = (s: Scenario) => {
+                const coutTotal = s.prixAchat + s.fraisNotaire + (s.fraisAgence || 0) + s.montantTravaux
+                const montantCredit = Math.max(0, coutTotal - s.apportPersonnel)
+                const tauxMensuel = (s.tauxInteretEstime / 100) / 12
+                const nombreMois = s.dureeCredit * 12
+                const mensualiteCredit = montantCredit > 0 && tauxMensuel > 0
+                  ? montantCredit * (tauxMensuel * Math.pow(1 + tauxMensuel, nombreMois)) / (Math.pow(1 + tauxMensuel, nombreMois) - 1)
+                  : 0
+                const cashflowMensuel70 = loyerNetMensuelBancaire - mensualiteCredit
+                const cashflowMensuel100 = loyersMensuelsTotal - mensualiteCredit
+                const rentabiliteBrute = coutTotal > 0 ? (loyersAnnuelsTotal / coutTotal) * 100 : 0
+                const rentabiliteNette = coutTotal > 0 ? (loyerNetBancaire / coutTotal) * 100 : 0
+                return { coutTotal, montantCredit, mensualiteCredit, cashflowMensuel70, cashflowMensuel100, rentabiliteBrute, rentabiliteNette, tauxMensuel, nombreMois }
+              }
 
-              // Cash-flow mensuel (selon règle bancaire 70%)
-              const cashflowMensuel70 = loyerNetMensuelBancaire - mensualiteCredit
-              const cashflowAnnuel70 = cashflowMensuel70 * 12
-
-              // Cash-flow mensuel avec 100% des loyers (situation réelle)
-              const cashflowMensuel100 = loyersMensuelsTotal - mensualiteCredit
-              const cashflowAnnuel100 = cashflowMensuel100 * 12
-
-              // Rentabilité brute
-              const rentabiliteBrute = coutTotal > 0 ? (loyersAnnuelsTotal / coutTotal) * 100 : 0
-
-              // Rentabilité nette (approximative, hors charges et taxes)
-              const rentabiliteNette = coutTotal > 0 ? (loyerNetBancaire / coutTotal) * 100 : 0
+              const scenarioCalcs = scenarios.map(s => ({ scenario: s, calc: calcScenario(s) }))
+              // Pour la vue détaillée (single scenario), on utilise le premier
+              const mainCalc = scenarioCalcs[0].calc
 
               return (
                 <>
-                  {/* Section 1: Coûts du projet */}
-                  <Card className="p-6 bg-blue-50 border-blue-200">
-                    <h4 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                  {/* Tableau comparatif si plusieurs scénarios */}
+                  {scenarios.length > 1 && (
+                    <Card className="p-6 bg-white border-gray-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Comparaison des hypothèses
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-2 pr-4 text-gray-500 font-medium"></th>
+                              {scenarioCalcs.map(({ scenario }) => (
+                                <th key={scenario.id} className="text-right py-2 px-3 font-semibold text-gray-900 min-w-[130px]">
+                                  {scenario.nom}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600">Prix d'achat</td>
+                              {scenarioCalcs.map(({ scenario }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-medium">{scenario.prixAchat.toLocaleString('fr-FR')} €</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600">Coût total</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-semibold">{calc.coutTotal.toLocaleString('fr-FR')} €</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600">Apport</td>
+                              {scenarioCalcs.map(({ scenario }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-medium text-green-600">{scenario.apportPersonnel.toLocaleString('fr-FR')} €</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600">Emprunt</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-semibold">{calc.montantCredit.toLocaleString('fr-FR')} €</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600">Durée / Taux</td>
+                              {scenarioCalcs.map(({ scenario }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-medium">{scenario.dureeCredit} ans / {scenario.tauxInteretEstime}%</td>
+                              ))}
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 pr-4 text-gray-600 font-medium">Mensualité</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className="py-2 px-3 text-right font-bold text-gray-900">{Math.round(calc.mensualiteCredit).toLocaleString('fr-FR')} €</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600 font-medium">Cash-flow 70%</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.cashflowMensuel70 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {calc.cashflowMensuel70 >= 0 ? '+' : ''}{Math.round(calc.cashflowMensuel70).toLocaleString('fr-FR')} €
+                                </td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600 font-medium">Cash-flow 100%</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.cashflowMensuel100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {calc.cashflowMensuel100 >= 0 ? '+' : ''}{Math.round(calc.cashflowMensuel100).toLocaleString('fr-FR')} €
+                                </td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600 font-medium">Rentabilité brute</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.rentabiliteBrute >= 5 ? 'text-green-600' : calc.rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
+                                  {calc.rentabiliteBrute.toFixed(2)}%
+                                </td>
+                              ))}
+                            </tr>
+                            <tr>
+                              <td className="py-2 pr-4 text-gray-600 font-medium">Rentabilité nette</td>
+                              {scenarioCalcs.map(({ scenario, calc }) => (
+                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.rentabiliteNette >= 3.5 ? 'text-green-600' : calc.rentabiliteNette >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
+                                  {calc.rentabiliteNette.toFixed(2)}%
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Section 1: Coûts du projet (scénario principal) */}
+                  <Card className="p-6 bg-gray-50 border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Euro className="h-5 w-5" />
-                      Coûts du projet
+                      Coûts du projet{scenarios.length > 1 ? ` (${scenarios[0].nom})` : ''}
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
@@ -1549,18 +1655,18 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                         <span className="text-gray-700">Montant travaux</span>
                         <span className="font-semibold">{financement.montantTravaux.toLocaleString('fr-FR')} €</span>
                       </div>
-                      <div className="border-t border-blue-300 pt-3 mt-3"></div>
+                      <div className="border-t border-gray-200 pt-3 mt-3"></div>
                       <div className="flex justify-between text-lg">
-                        <span className="font-bold text-blue-900">Coût total du projet</span>
-                        <span className="font-bold text-blue-900">{coutTotal.toLocaleString('fr-FR')} €</span>
+                        <span className="font-bold text-gray-900">Coût total du projet</span>
+                        <span className="font-bold text-gray-900">{mainCalc.coutTotal.toLocaleString('fr-FR')} €</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-700">Apport personnel</span>
                         <span className="font-semibold text-green-600">- {financement.apportPersonnel.toLocaleString('fr-FR')} €</span>
                       </div>
                       <div className="flex justify-between text-lg">
-                        <span className="font-bold text-blue-900">Montant à financer</span>
-                        <span className="font-bold text-blue-900">{montantCredit.toLocaleString('fr-FR')} €</span>
+                        <span className="font-bold text-gray-900">Montant à financer</span>
+                        <span className="font-bold text-gray-900">{mainCalc.montantCredit.toLocaleString('fr-FR')} €</span>
                       </div>
                     </div>
                   </Card>
@@ -1574,10 +1680,9 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     <div className="space-y-3">
                       {elementsBien.filter(el => el.loyerMensuel).length > 0 ? (
                         <>
-                          {/* Loyers actuels */}
                           {loyersActuels.length > 0 && (
                             <>
-                              <p className="text-xs font-semibold text-green-800 mb-2">📍 Lots actuellement loués</p>
+                              <p className="text-xs font-semibold text-green-800 mb-2">Lots actuellement loués</p>
                               {loyersActuels.map((el, idx) => (
                                 <div key={idx} className="flex justify-between text-sm bg-white rounded px-2 py-1">
                                   <span className="text-gray-700">{el.type} - {el.superficie}m²</span>
@@ -1586,20 +1691,17 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                               ))}
                             </>
                           )}
-
-                          {/* Loyers estimatifs */}
                           {loyersEstimatifs.length > 0 && (
                             <>
-                              <p className="text-xs font-semibold text-blue-800 mb-2 mt-3">💡 Lots avec loyers estimatifs</p>
+                              <p className="text-xs font-semibold text-gray-800 mb-2 mt-3">Lots avec loyers estimatifs</p>
                               {loyersEstimatifs.map((el, idx) => (
-                                <div key={idx} className="flex justify-between text-sm bg-blue-50 rounded px-2 py-1 border border-blue-200">
+                                <div key={idx} className="flex justify-between text-sm bg-gray-50 rounded px-2 py-1 border border-gray-200">
                                   <span className="text-gray-700">{el.type} - {el.superficie}m²</span>
-                                  <span className="font-semibold text-blue-700">{(el.loyerMensuel || 0).toLocaleString('fr-FR')} € / mois <span className="text-xs">(estimatif)</span></span>
+                                  <span className="font-semibold text-gray-700">{(el.loyerMensuel || 0).toLocaleString('fr-FR')} € / mois <span className="text-xs">(estimatif)</span></span>
                                 </div>
                               ))}
                             </>
                           )}
-
                           <div className="border-t border-green-300 pt-3 mt-3"></div>
                           <div className="flex justify-between text-lg">
                             <span className="font-bold text-green-900">Total mensuel</span>
@@ -1616,15 +1718,15 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                     </div>
                   </Card>
 
-                  {/* Section 3: Financement et règle des 70% */}
-                  {montantCredit > 0 && (
+                  {/* Section 3: Financement et règle des 70% (scénario principal) */}
+                  {mainCalc.montantCredit > 0 && (
                     <Card className="p-6 bg-orange-50 border-orange-200">
                       <h4 className="font-semibold text-orange-900 mb-4 flex items-center gap-2">
                         <TrendingUp className="h-5 w-5" />
-                        Analyse du financement
+                        Analyse du financement{scenarios.length > 1 ? ` (${scenarios[0].nom})` : ''}
                       </h4>
                       <div className="space-y-3">
-                        <div className="bg-white rounded-lg p-3 border border-orange-200">
+                        <div className="bg-white rounded-xl p-3 border border-orange-200">
                           <p className="text-xs text-gray-600 mb-2">Règle bancaire des 70%</p>
                           <div className="flex justify-between">
                             <span className="text-gray-700">Loyers bruts annuels</span>
@@ -1652,78 +1754,66 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                         </div>
                         <div className="flex justify-between text-lg">
                           <span className="font-bold text-orange-900">Mensualité crédit</span>
-                          <span className="font-bold text-orange-900">{mensualiteCredit.toLocaleString('fr-FR')} € / mois</span>
+                          <span className="font-bold text-orange-900">{Math.round(mainCalc.mensualiteCredit).toLocaleString('fr-FR')} € / mois</span>
                         </div>
 
                         <div className="border-t border-orange-300 pt-3"></div>
 
                         <div className="space-y-2">
-                          {/* Cash-flow avec 70% (règle bancaire) */}
-                          <div className={`p-3 rounded-lg ${cashflowMensuel70 >= 0 ? 'bg-orange-100 border border-orange-300' : 'bg-red-100 border border-red-300'}`}>
+                          <div className={`p-3 rounded-xl ${mainCalc.cashflowMensuel70 >= 0 ? 'bg-orange-100 border border-orange-300' : 'bg-red-100 border border-red-300'}`}>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-700">Cash-flow mensuel (70% des loyers)</span>
-                              <span className={`font-bold ${cashflowMensuel70 >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
-                                {cashflowMensuel70 >= 0 ? '+' : ''}{cashflowMensuel70.toLocaleString('fr-FR')} € / mois
+                              <span className={`font-bold ${mainCalc.cashflowMensuel70 >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
+                                {mainCalc.cashflowMensuel70 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel70).toLocaleString('fr-FR')} € / mois
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-600">Cash-flow annuel</span>
-                              <span className={`font-semibold ${cashflowAnnuel70 >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                                {cashflowAnnuel70 >= 0 ? '+' : ''}{cashflowAnnuel70.toLocaleString('fr-FR')} € / an
+                              <span className={`font-semibold ${mainCalc.cashflowMensuel70 >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                                {mainCalc.cashflowMensuel70 * 12 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel70 * 12).toLocaleString('fr-FR')} € / an
                               </span>
                             </div>
                           </div>
 
-                          {/* Cash-flow avec 100% (situation réelle) */}
-                          <div className={`p-3 rounded-lg ${cashflowMensuel100 >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                          <div className={`p-3 rounded-xl ${mainCalc.cashflowMensuel100 >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-gray-700">Cash-flow mensuel (100% des loyers)</span>
-                              <span className={`font-bold ${cashflowMensuel100 >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                {cashflowMensuel100 >= 0 ? '+' : ''}{cashflowMensuel100.toLocaleString('fr-FR')} € / mois
+                              <span className={`font-bold ${mainCalc.cashflowMensuel100 >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                {mainCalc.cashflowMensuel100 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel100).toLocaleString('fr-FR')} € / mois
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-600">Cash-flow annuel</span>
-                              <span className={`font-semibold ${cashflowAnnuel100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {cashflowAnnuel100 >= 0 ? '+' : ''}{cashflowAnnuel100.toLocaleString('fr-FR')} € / an
+                              <span className={`font-semibold ${mainCalc.cashflowMensuel100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {mainCalc.cashflowMensuel100 * 12 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel100 * 12).toLocaleString('fr-FR')} € / an
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        {cashflowMensuel70 < 0 && (() => {
-                          // Calcul de l'augmentation de loyer nécessaire
-                          // Pour équilibrer : loyerNetMensuelBancaire doit égaler mensualiteCredit
-                          // Avec règle 70% : nouveauLoyersMensuelsTotal * 0.7 = mensualiteCredit
-                          const loyersMensuelsNecessaires = mensualiteCredit / 0.7
+                        {mainCalc.cashflowMensuel70 < 0 && (() => {
+                          const loyersMensuelsNecessaires = mainCalc.mensualiteCredit / 0.7
                           const augmentationLoyerNecessaire = loyersMensuelsNecessaires - loyersMensuelsTotal
-
-                          // Calcul de la réduction du coût total nécessaire
-                          // Pour équilibrer : mensualiteCredit doit égaler loyerNetMensuelBancaire
-                          // Formule inverse de la mensualité de crédit
-                          const facteurAmortissement = tauxMensuel > 0
-                            ? (tauxMensuel * Math.pow(1 + tauxMensuel, nombreMois)) / (Math.pow(1 + tauxMensuel, nombreMois) - 1)
-                            : 1 / nombreMois
+                          const facteurAmortissement = mainCalc.tauxMensuel > 0
+                            ? (mainCalc.tauxMensuel * Math.pow(1 + mainCalc.tauxMensuel, mainCalc.nombreMois)) / (Math.pow(1 + mainCalc.tauxMensuel, mainCalc.nombreMois) - 1)
+                            : 1 / mainCalc.nombreMois
                           const nouveauMontantCredit = loyerNetMensuelBancaire / facteurAmortissement
-                          const reductionCreditNecessaire = montantCredit - nouveauMontantCredit
-                          const reductionCoutTotalNecessaire = reductionCreditNecessaire
+                          const reductionCoutTotalNecessaire = mainCalc.montantCredit - nouveauMontantCredit
 
                           return (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-3">
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
                               <p className="text-sm font-semibold text-red-900 mb-3">
-                                ⚠️ Le projet nécessite un apport mensuel de <strong>{Math.abs(cashflowMensuel70).toLocaleString('fr-FR')} €</strong> pour couvrir la mensualité du crédit.
+                                Le projet nécessite un apport mensuel de <strong>{Math.abs(Math.round(mainCalc.cashflowMensuel70)).toLocaleString('fr-FR')} €</strong> pour couvrir la mensualité du crédit.
                               </p>
-                              <p className="text-xs text-red-800 mb-2 font-semibold">💡 Pour équilibrer le projet :</p>
+                              <p className="text-xs text-red-800 mb-2 font-semibold">Pour équilibrer le projet :</p>
                               <div className="space-y-2 text-xs text-red-800">
                                 <div className="bg-white bg-opacity-50 rounded p-2 border border-red-300">
                                   <p className="font-semibold mb-1">Option 1 : Augmenter les loyers</p>
-                                  <p>Les loyers mensuels doivent être augmentés de <strong>+{augmentationLoyerNecessaire.toLocaleString('fr-FR')} €/mois</strong></p>
-                                  <p className="text-gray-600 mt-1">(soit passer de {loyersMensuelsTotal.toLocaleString('fr-FR')} € à {loyersMensuelsNecessaires.toLocaleString('fr-FR')} €/mois)</p>
+                                  <p>Augmenter de <strong>+{Math.round(augmentationLoyerNecessaire).toLocaleString('fr-FR')} €/mois</strong> (soit {Math.round(loyersMensuelsNecessaires).toLocaleString('fr-FR')} €/mois au total)</p>
                                 </div>
                                 <div className="bg-white bg-opacity-50 rounded p-2 border border-red-300">
                                   <p className="font-semibold mb-1">Option 2 : Réduire le coût du projet</p>
-                                  <p>Le coût total du projet doit être réduit de <strong>-{reductionCoutTotalNecessaire.toLocaleString('fr-FR')} €</strong></p>
-                                  <p className="text-gray-600 mt-1">(soit passer de {coutTotal.toLocaleString('fr-FR')} € à {(coutTotal - reductionCoutTotalNecessaire).toLocaleString('fr-FR')} €)</p>
+                                  <p>Réduire de <strong>-{Math.round(reductionCoutTotalNecessaire).toLocaleString('fr-FR')} €</strong> (soit {Math.round(mainCalc.coutTotal - reductionCoutTotalNecessaire).toLocaleString('fr-FR')} € au total)</p>
                                 </div>
                               </div>
                             </div>
@@ -1740,37 +1830,32 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                       Indicateurs de rentabilité
                     </h4>
                     <div className="space-y-4">
-                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                      <div className="bg-white rounded-xl p-4 border border-purple-200">
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="text-sm text-gray-600">Rentabilité brute</p>
                             <p className="text-xs text-gray-500 mt-1">Loyers annuels / Coût total</p>
                           </div>
-                          <div className="text-right">
-                            <span className={`text-2xl font-bold ${rentabiliteBrute >= 5 ? 'text-green-600' : rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
-                              {rentabiliteBrute.toFixed(2)}%
-                            </span>
-                          </div>
+                          <span className={`text-2xl font-bold ${mainCalc.rentabiliteBrute >= 5 ? 'text-green-600' : mainCalc.rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
+                            {mainCalc.rentabiliteBrute.toFixed(2)}%
+                          </span>
                         </div>
                       </div>
 
-                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                      <div className="bg-white rounded-xl p-4 border border-purple-200">
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="text-sm text-gray-600">Rentabilité nette (70%)</p>
                             <p className="text-xs text-gray-500 mt-1">Loyers nets (70%) / Coût total</p>
                           </div>
-                          <div className="text-right">
-                            <span className={`text-2xl font-bold ${rentabiliteNette >= 3.5 ? 'text-green-600' : rentabiliteNette >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
-                              {rentabiliteNette.toFixed(2)}%
-                            </span>
-                          </div>
+                          <span className={`text-2xl font-bold ${mainCalc.rentabiliteNette >= 3.5 ? 'text-green-600' : mainCalc.rentabiliteNette >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
+                            {mainCalc.rentabiliteNette.toFixed(2)}%
+                          </span>
                         </div>
                       </div>
 
-                      {/* Guide de lecture */}
-                      <div className="bg-purple-100 rounded-lg p-3 mt-4">
-                        <p className="text-xs font-semibold text-purple-900 mb-2">📊 Guide de lecture</p>
+                      <div className="bg-purple-100 rounded-xl p-3 mt-4">
+                        <p className="text-xs font-semibold text-purple-900 mb-2">Guide de lecture</p>
                         <ul className="text-xs text-purple-800 space-y-1">
                           <li>• Rentabilité brute {'>'} 5% : Excellent</li>
                           <li>• Rentabilité brute 3-5% : Correct</li>
@@ -1783,9 +1868,9 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
                   {/* Section 5: Analyse serveur (projet sauvegardé) */}
                   {initialProjet?.id && (
-                    <Card className="p-6 bg-indigo-50 border-indigo-200">
+                    <Card className="p-6 bg-gray-50 border-gray-200">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-indigo-900 flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                           <BarChart3 className="h-5 w-5" />
                           Analyse complète (serveur)
                         </h4>
@@ -1793,7 +1878,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                           type="button"
                           onClick={handleCalculateRentabilite}
                           disabled={analysisLoading}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-xl transition-colors disabled:opacity-50"
                         >
                           {analysisLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1806,7 +1891,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
                       {analysisLoading && !analysisData && (
                         <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
+                          <Loader2 className="h-8 w-8 text-gray-900 animate-spin" />
                         </div>
                       )}
 
@@ -1814,37 +1899,37 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                         <div className="space-y-3">
                           {/* KPI Grid */}
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">Rentabilité brute</p>
                               <p className={`text-xl font-bold ${(analysisData.rentabiliteBrute || 0) >= 5 ? 'text-green-600' : (analysisData.rentabiliteBrute || 0) >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
                                 {(analysisData.rentabiliteBrute || 0).toFixed(2)}%
                               </p>
                             </div>
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">Rentabilité nette</p>
                               <p className={`text-xl font-bold ${(analysisData.rentabiliteNette || 0) >= 3.5 ? 'text-green-600' : (analysisData.rentabiliteNette || 0) >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
                                 {(analysisData.rentabiliteNette || 0).toFixed(2)}%
                               </p>
                             </div>
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">Cash-flow mensuel</p>
                               <p className={`text-xl font-bold ${(analysisData.cashFlowMensuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {(analysisData.cashFlowMensuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowMensuel || 0).toLocaleString('fr-FR')} €
                               </p>
                             </div>
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">Cash-flow annuel</p>
                               <p className={`text-xl font-bold ${(analysisData.cashFlowAnnuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {(analysisData.cashFlowAnnuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowAnnuel || 0).toLocaleString('fr-FR')} €
                               </p>
                             </div>
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">ROI</p>
-                              <p className="text-xl font-bold text-indigo-700">
+                              <p className="text-xl font-bold text-gray-900">
                                 {(analysisData.roi || 0).toFixed(2)}%
                               </p>
                             </div>
-                            <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
                               <p className="text-xs text-gray-500">Taux endettement</p>
                               <p className={`text-xl font-bold ${(analysisData.tauxEndettementProjet || 0) <= 35 ? 'text-green-600' : 'text-red-600'}`}>
                                 {(analysisData.tauxEndettementProjet || 0).toFixed(1)}%
@@ -1853,7 +1938,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                           </div>
 
                           {/* Détails supplémentaires */}
-                          <div className="bg-white rounded-lg p-3 border border-indigo-200">
+                          <div className="bg-white rounded-xl p-3 border border-gray-200">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-600">Charges annuelles estimées</span>
                               <span className="font-semibold">{(analysisData.chargesAnnuelles || 0).toLocaleString('fr-FR')} €</span>
@@ -1868,7 +1953,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                             </div>
                           </div>
 
-                          <p className="text-xs text-indigo-600 italic">
+                          <p className="text-xs text-gray-900 italic">
                             Analyse calculée sur les données sauvegardées en base. Sauvegardez le projet puis recalculez pour mettre à jour.
                           </p>
                         </div>
@@ -1897,7 +1982,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   type="button"
                   onClick={handleGenerateChecklist}
                   disabled={checklistLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-xl transition-colors disabled:opacity-50"
                 >
                   {checklistLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1911,7 +1996,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
             {/* Pas de projet sauvegardé */}
             {!initialProjet?.id && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">Sauvegardez d'abord le projet pour générer la checklist des documents</p>
               </div>
@@ -1920,7 +2005,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
             {/* Loading */}
             {checklistLoading && checklistDocs.length === 0 && (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+                <Loader2 className="h-8 w-8 text-gray-900 animate-spin" />
               </div>
             )}
 
@@ -1953,7 +2038,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 'Non_Fourni': 'bg-red-100 text-red-700 border-red-300',
                 'En_Attente': 'bg-orange-100 text-orange-700 border-orange-300',
                 'Fourni': 'bg-green-100 text-green-700 border-green-300',
-                'Valide': 'bg-blue-100 text-blue-700 border-blue-300'
+                'Valide': 'bg-gray-100 text-gray-700 border-gray-200'
               }
 
               const statutLabels: Record<string, string> = {
@@ -1976,11 +2061,11 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   <Card className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-700">Progression</span>
-                      <span className="text-sm font-bold text-blue-600">{fournis}/{total} documents ({progression}%)</span>
+                      <span className="text-sm font-bold text-gray-900">{fournis}/{total} documents ({progression}%)</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
-                        className={`h-3 rounded-full transition-all duration-500 ${progression === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                        className={`h-3 rounded-full transition-all duration-500 ${progression === 100 ? 'bg-green-500' : 'bg-gray-900'}`}
                         style={{ width: `${progression}%` }}
                       />
                     </div>
@@ -1990,7 +2075,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   {Object.entries(categories).map(([categorie, docs]) => (
                     <Card key={categorie} className="p-4">
                       <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-500" />
+                        <FileText className="h-4 w-4 text-gray-700" />
                         {categorieLabels[categorie] || categorie}
                         <span className="text-xs text-gray-400 font-normal">({docs.length})</span>
                       </h4>
@@ -2000,7 +2085,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                             ? structures.find(s => s.id === doc.concerneStructureId)
                             : null
                           return (
-                            <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div key={doc.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 transition-colors">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-800 truncate">{doc.nomDocument}</p>
                                 {structure && (
@@ -2013,7 +2098,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                               <button
                                 type="button"
                                 onClick={() => handleUpdateDocumentStatus(doc.id, nextStatut[doc.statut] || 'Non_Fourni')}
-                                className={`ml-3 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${statutColors[doc.statut] || 'bg-gray-100 text-gray-600 border-gray-300'}`}
+                                className={`ml-3 px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${statutColors[doc.statut] || 'bg-gray-100 text-gray-600 border-gray-200'}`}
                               >
                                 {statutLabels[doc.statut] || doc.statut}
                               </button>
@@ -2029,20 +2114,20 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
 
             {/* Checklist non générée et projet sauvegardé */}
             {initialProjet?.id && !checklistLoading && checklistDocs.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">Aucune checklist générée pour ce projet</p>
                 <button
                   type="button"
                   onClick={handleGenerateChecklist}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm transition-colors"
                 >
                   Générer la checklist des documents
                 </button>
               </div>
             )}
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-2">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mt-2">
               <p className="text-sm text-yellow-800">
                 <strong>Note :</strong> Cliquez sur le statut d'un document pour le faire évoluer : Non fourni → En attente → Fourni → Validé.
               </p>
@@ -2057,28 +2142,28 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-300 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2"
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           >
             Annuler
           </button>
         )}
         <button
           type="submit"
-          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2"
+          className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2"
         >
-          <CheckCircle className="h-5 w-5" />
-          Enregistrer le projet
+          <CheckCircle className="h-4 w-4" />
+          Enregistrer
         </button>
         {onGeneratePDF && initialProjet && (
           <button
             type="button"
-            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white border-2 border-green-600 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2"
+            className="px-5 py-2.5 bg-gradient-to-r from-coral-200 via-honey-200 to-honey-100 hover:from-coral-300 hover:via-honey-300 hover:to-honey-200 text-gray-900 rounded-xl text-sm font-medium transition-all inline-flex items-center gap-2"
             onClick={() => {
               console.log('🎯 Bouton "Générer le dossier" cliqué !');
               onGeneratePDF()
             }}
           >
-            <FileText className="h-5 w-5" />
+            <FileText className="h-4 w-4" />
             Générer le dossier bancaire
           </button>
         )}

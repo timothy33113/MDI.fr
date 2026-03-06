@@ -39,7 +39,6 @@ const EditProjetPage: React.FC = () => {
     try {
       await updateProjet(id, data);
       toast.success('Projet enregistré');
-      navigate('/projets');
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du projet:', error);
       const detail = error?.message || error?.response?.data?.error || String(error);

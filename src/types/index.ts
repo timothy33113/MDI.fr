@@ -394,6 +394,7 @@ export interface Photo {
   filename: string;
   description?: string;
   type: 'Facade' | 'Interieur' | 'Avant_Travaux' | 'Apres_Travaux' | 'Plan' | 'Autre';
+  position: number;
 
   size: number;
   mimeType: string;
@@ -603,10 +604,18 @@ export interface CreateProjetForm {
     montant: number;
   }>;
 
-  // Photos (base64)
-  photos?: string[];
+  // Photos
+  photos?: Array<{
+    url: string;
+    filename?: string;
+    description?: string;
+    type?: string;
+    position: number;
+    size?: number;
+    mimeType?: string;
+  }>;
 
-  // Photo de couverture (base64)
+  // Photo de couverture
   photoCouverture?: string;
 
   // Comparables de marche

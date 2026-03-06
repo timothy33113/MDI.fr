@@ -1,21 +1,27 @@
 import React, { useState } from 'react'
-import { Search, Building2, User, Loader2, Check, Plus, ChevronDown } from 'lucide-react'
-import { searchEntrepriseByDirigeant, EntrepriseApiResult } from '@/services/entrepriseApi'
+import { Search, Building2, Loader2, Check, Plus, Sparkles, Link as LinkIcon } from 'lucide-react'
+import { searchEntrepriseByDirigeant, searchEntrepriseBySirenOrSiret, searchFilialesByPM, isHolding, EntrepriseApiResult } from '@/services/entrepriseApi'
 
 interface RechercheEntrepriseParDirigeantProps {
+  nom: string
+  prenoms: string
   onAddEntreprises?: (entreprises: EntrepriseApiResult[], searchedNom?: string, searchedPrenoms?: string) => void
 }
 
+// Résultat enrichi avec info de provenance
+interface EnrichedResult {
+  entreprise: EntrepriseApiResult
+  isLinkedPM?: boolean
+}
+
 const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantProps> = ({
+  nom,
+  prenoms,
   onAddEntreprises
 }) => {
-  console.log('🔍 RechercheEntrepriseParDirigeant monté')
-
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [nom, setNom] = useState('')
-  const [prenoms, setPrenoms] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [results, setResults] = useState<EntrepriseApiResult[]>([])
+  const [isSearchingFiliales, setIsSearchingFiliales] = useState(false)
+  const [results, setResults] = useState<EnrichedResult[]>([])
   const [selectedEntreprises, setSelectedEntreprises] = useState<Set<string>>(new Set())
   const [totalResults, setTotalResults] = useState(0)
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -23,36 +29,119 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
 
   const handleSearch = async () => {
     if (!nom.trim()) {
-      setSearchError('Veuillez entrer au moins un nom')
+      setSearchError('Veuillez renseigner le nom ci-dessus')
       return
     }
 
     setIsSearching(true)
     setSearchError(null)
     setHasSearched(true)
-    setSelectedEntreprises(new Set()) // Reset selection
+    setSelectedEntreprises(new Set())
 
     try {
       const response = await searchEntrepriseByDirigeant(nom, prenoms, 1, 25)
-      setResults(response.results || [])
-      setTotalResults(response.total_results || 0)
+      const activeResults = (response.results || []).filter(e => e.etat_administratif === 'A')
+      const directResults: EnrichedResult[] = activeResults.map(e => ({
+        entreprise: e
+      }))
 
-      if (response.results.length === 0) {
+      setResults(directResults)
+      setTotalResults(activeResults.length)
+
+      if (activeResults.length === 0) {
         setSearchError(`Aucune entreprise trouvée pour ${prenoms} ${nom}`.trim())
+        setIsSearching(false)
+        return
+      }
+
+      setIsSearching(false)
+
+      // Phase 2 : Trouver les sociétés liées
+      const allPmSirens = new Map<string, string>()
+      const existingSirens = new Set(activeResults.map(r => r.siren))
+
+      for (const result of activeResults) {
+        for (const d of result.dirigeants || []) {
+          if (d.type_dirigeant === 'personne morale' && d.siren && d.denomination) {
+            allPmSirens.set(d.siren, d.denomination)
+          }
+        }
+      }
+
+      if (allPmSirens.size > 0) {
+        setIsSearchingFiliales(true)
+
+        // 2a: Récupérer les PM absents des résultats directs
+        const missingSirens = [...allPmSirens.entries()].filter(([siren]) => !existingSirens.has(siren))
+        const missingPmPromises = missingSirens.map(async ([siren, denomination]) => {
+          try {
+            const pmData = await searchEntrepriseBySirenOrSiret(siren)
+            if (pmData && pmData.etat_administratif === 'A') {
+              existingSirens.add(siren)
+              return { entreprise: pmData, isLinkedPM: true } as EnrichedResult
+            }
+          } catch (err) {
+            console.error(`Erreur récupération PM ${denomination}:`, err)
+          }
+          return null
+        })
+
+        const missingPmFetched = await Promise.all(missingPmPromises)
+        const missingPmResults = missingPmFetched.filter((r): r is EnrichedResult => r !== null)
+
+        if (missingPmResults.length > 0) {
+          setResults(prev => [...prev, ...missingPmResults])
+          setTotalResults(prev => prev + missingPmResults.length)
+        }
+
+        // Collecter PM des PM manquants
+        for (const pmResult of missingPmResults) {
+          for (const d of pmResult.entreprise.dirigeants || []) {
+            if (d.type_dirigeant === 'personne morale' && d.siren && d.denomination) {
+              if (!allPmSirens.has(d.siren)) {
+                allPmSirens.set(d.siren, d.denomination)
+              }
+            }
+          }
+        }
+
+        // 2b: Chercher les filiales de TOUS les PM
+        const filialesPromises = [...allPmSirens.entries()].map(async ([pmSiren, pmDenomination]) => {
+          try {
+            return await searchFilialesByPM(pmDenomination, pmSiren, 3)
+          } catch (err) {
+            console.error(`Erreur recherche filiales de ${pmDenomination}:`, err)
+            return []
+          }
+        })
+
+        const filialesArrays = await Promise.all(filialesPromises)
+        const allFiliales = filialesArrays.flat()
+
+        const newFiliales: EnrichedResult[] = []
+        for (const f of allFiliales) {
+          if (!existingSirens.has(f.siren) && f.etat_administratif === 'A') {
+            existingSirens.add(f.siren)
+            newFiliales.push({
+              entreprise: f,
+              isLinkedPM: true
+            })
+          }
+        }
+
+        if (newFiliales.length > 0) {
+          setResults(prev => [...prev, ...newFiliales])
+          setTotalResults(prev => prev + newFiliales.length)
+        }
+
+        setIsSearchingFiliales(false)
       }
     } catch (error) {
       console.error('Erreur recherche dirigeant:', error)
       setSearchError('Erreur lors de la recherche. Veuillez réessayer.')
       setResults([])
       setTotalResults(0)
-    } finally {
       setIsSearching(false)
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch()
     }
   }
 
@@ -69,233 +158,207 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
   }
 
   const handleAddSelectedEntreprises = () => {
-    console.log('🔘 handleAddSelectedEntreprises appelé')
-    const entreprisesToAdd = results.filter(e => selectedEntreprises.has(e.siren))
-    console.log('📊 Entreprises à ajouter:', entreprisesToAdd.length)
-    console.log('🔍 onAddEntreprises existe?', !!onAddEntreprises)
-    console.log('🔍 Type de onAddEntreprises:', typeof onAddEntreprises)
-    console.log('🔍 onAddEntreprises:', onAddEntreprises)
+    const entreprisesToAdd = results
+      .filter(r => selectedEntreprises.has(r.entreprise.siren))
+      .map(r => r.entreprise)
 
     if (entreprisesToAdd.length > 0 && onAddEntreprises) {
-      console.log('✅ JUSTE AVANT appel de onAddEntreprises avec', entreprisesToAdd.length, 'entreprises')
-      console.log('✅ APPEL MAINTENANT de onAddEntreprises()')
       onAddEntreprises(entreprisesToAdd, nom, prenoms)
-      console.log('✅ APRÈS appel de onAddEntreprises')
-      // Reset après ajout
       setSelectedEntreprises(new Set())
       setResults([])
       setHasSearched(false)
-      setNom('')
-      setPrenoms('')
-    } else {
-      console.log('❌ Conditions non remplies - entreprises:', entreprisesToAdd.length, 'callback:', !!onAddEntreprises)
     }
   }
 
+  // Séparer résultats directs et sociétés mères liées
+  const directResults = results.filter(r => !r.isLinkedPM)
+  const linkedPMResults = results.filter(r => r.isLinkedPM)
+
+  const getFormeJuridique = (code: string): string | null => {
+    if (!code) return null
+    if (code === '5498' || code === '5499') return 'SARL'
+    if (code === '5710') return 'SAS'
+    if (code === '5720') return 'SASU'
+    if (code === '5505' || code === '5510') return 'SA'
+    if (code === '5542') return 'EURL'
+    if (code === '6540') return 'SCI'
+    if (code === '5308') return 'SE'
+    if (code === '1000') return 'EI'
+    if (code === '5202') return 'SNC'
+    if (code.startsWith('54')) return 'SARL'
+    if (code.startsWith('57')) return 'SAS'
+    if (code.startsWith('55')) return 'SA'
+    if (code.startsWith('65')) return 'SCI'
+    return null
+  }
+
+  const renderEntrepriseCard = (item: EnrichedResult, index: number) => {
+    const { entreprise, isLinkedPM } = item
+    const dirigeant = entreprise.dirigeants?.find(d =>
+      d.nom?.toLowerCase().includes(nom.toLowerCase()) ||
+      (prenoms && d.prenoms?.toLowerCase().includes(prenoms.toLowerCase()))
+    )
+    const isSelected = selectedEntreprises.has(entreprise.siren)
+    const holding = isHolding(entreprise)
+    const formeJuridique = getFormeJuridique(entreprise.nature_juridique)
+
+    return (
+      <button
+        key={entreprise.siren || index}
+        type="button"
+        onClick={() => toggleEntrepriseSelection(entreprise.siren)}
+        className={`w-full text-left bg-white rounded-xl border transition-all cursor-pointer ${
+          isSelected
+            ? 'border-gray-300 shadow-sm'
+            : 'border-gray-200 hover:border-gray-300'
+        }`}
+      >
+        <div className="flex items-center justify-between px-5 py-4">
+          {/* Left: icon + content */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+              isSelected
+                ? 'bg-gray-900'
+                : holding ? 'bg-purple-50' : 'bg-gray-100'
+            }`}>
+              {isSelected ? (
+                <Check className="h-4 w-4 text-white" />
+              ) : (
+                <Building2 className={`h-4 w-4 ${holding ? 'text-purple-600' : 'text-gray-600'}`} />
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-900 truncate">
+                  {entreprise.nom_complet || entreprise.nom_raison_sociale}
+                </span>
+                {holding && (
+                  <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-medium rounded-full border border-purple-200 flex-shrink-0">
+                    Holding
+                  </span>
+                )}
+                {isLinkedPM && !holding && (
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded-full border border-amber-200 flex-shrink-0">
+                    Société liée
+                  </span>
+                )}
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full flex-shrink-0">
+                  {entreprise.siren}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 truncate">
+                {entreprise.siege?.adresse || 'Adresse non disponible'}
+              </p>
+              {dirigeant && (
+                <p className="text-xs text-gray-500 truncate">
+                  {dirigeant.prenoms} {dirigeant.nom} — {dirigeant.qualite || 'Dirigeant'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right: forme juridique badge */}
+          {formeJuridique && (
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-medium rounded-full border border-blue-200 flex-shrink-0 ml-3">
+              {formeJuridique}
+            </span>
+          )}
+        </div>
+      </button>
+    )
+  }
+
   return (
-    <div className="border border-blue-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      {/* Header collapsible */}
+    <div className="space-y-3">
+      {/* Bouton de recherche */}
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 flex items-center justify-between transition-all duration-200"
+        onClick={handleSearch}
+        disabled={isSearching || !nom.trim()}
+        className="w-full px-4 py-3 bg-gradient-to-r from-coral-50 via-honey-50 to-honey-100 hover:from-coral-100 hover:via-honey-100 hover:to-honey-150 border border-honey-200 rounded-xl flex items-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
       >
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 p-2 bg-white rounded-lg shadow-sm">
-            <Search className="h-5 w-5 text-blue-600" />
-          </div>
-          <div className="text-left">
-            <p className="font-semibold text-gray-900 text-sm">Rechercher par dirigeant</p>
-            <p className="text-xs text-gray-600">Importer automatiquement depuis l'API entreprise</p>
-          </div>
+        <div className="flex-shrink-0 p-1.5 bg-white/80 rounded-lg shadow-sm">
+          {isSearching ? (
+            <Loader2 className="h-4 w-4 text-coral-500 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 text-coral-500" />
+          )}
         </div>
-        <ChevronDown
-          className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
-        />
+        <div className="text-left flex-1">
+          <p className="font-semibold text-gray-900 text-sm">
+            {isSearching ? 'Recherche en cours...' : 'Rechercher les entreprises liées'}
+          </p>
+          <p className="text-xs text-gray-600">
+            {nom.trim()
+              ? `Trouver les sociétés de ${prenoms ? prenoms + ' ' : ''}${nom}, y compris via ses holdings`
+              : 'Renseignez le nom ci-dessus pour lancer la recherche'
+            }
+          </p>
+        </div>
+        <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
       </button>
 
-      {/* Contenu extensible */}
-      {isExpanded && (
-        <div className="p-4 bg-white border-t border-blue-100">
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <User className="h-4 w-4 text-purple-600" />
-              Trouvez toutes les entreprises où une personne est dirigeante
+      {/* Erreur */}
+      {searchError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+          <p className="text-sm text-red-700">{searchError}</p>
+        </div>
+      )}
+
+      {/* Recherche sociétés liées en cours */}
+      {isSearchingFiliales && (
+        <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+          <p className="text-sm text-purple-700">Recherche des sociétés mères liées...</p>
+        </div>
+      )}
+
+      {/* Résultats */}
+      {hasSearched && !isSearching && results.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              {totalResults} entreprise{totalResults > 1 ? 's' : ''} trouvée{totalResults > 1 ? 's' : ''}
+              {selectedEntreprises.size > 0 && (
+                <span className="ml-1 normal-case tracking-normal text-gray-900">
+                  — {selectedEntreprises.size} sélectionnée{selectedEntreprises.size > 1 ? 's' : ''}
+                </span>
+              )}
             </p>
           </div>
 
-          {/* Formulaire de recherche */}
-          <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={nom}
-                    onChange={(e) => setNom(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ex: Dupont"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prénom(s) (optionnel)
-                  </label>
-                  <input
-                    type="text"
-                    value={prenoms}
-                    onChange={(e) => setPrenoms(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ex: Jean"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {directResults.map((item, index) => renderEntrepriseCard(item, index))}
 
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={isSearching || !nom.trim()}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Recherche en cours...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4" />
-                    Rechercher
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Erreur */}
-            {searchError && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700">{searchError}</p>
-              </div>
+            {linkedPMResults.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 pt-2 px-1">
+                  <LinkIcon className="h-3.5 w-3.5 text-purple-500" />
+                  <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">
+                    Sociétés liées
+                  </p>
+                  <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-medium rounded-full border border-purple-200">
+                    {linkedPMResults.length}
+                  </span>
+                </div>
+                <div className="space-y-2 pl-3 border-l-2 border-purple-100">
+                  {linkedPMResults.map((item, index) => renderEntrepriseCard(item, index))}
+                </div>
+              </>
             )}
+          </div>
 
-            {/* Résultats */}
-            {hasSearched && !isSearching && results.length > 0 && (
-              <div className="mt-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-700">
-                    {totalResults} entreprise{totalResults > 1 ? 's' : ''} trouvée{totalResults > 1 ? 's' : ''}
-                    {selectedEntreprises.size > 0 && (
-                      <span className="ml-2 text-purple-600">
-                        ({selectedEntreprises.size} sélectionnée{selectedEntreprises.size > 1 ? 's' : ''})
-                      </span>
-                    )}
-                  </h4>
-                  {totalResults > 25 && (
-                    <p className="text-xs text-gray-500">
-                      Affichage des 25 premiers résultats
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2 max-h-96 overflow-y-auto mb-3">
-                  {results.map((entreprise, index) => {
-                    // Trouver le dirigeant correspondant à la recherche
-                    const dirigeant = entreprise.dirigeants?.find(d =>
-                      d.nom?.toLowerCase().includes(nom.toLowerCase()) ||
-                      d.prenoms?.toLowerCase().includes(prenoms.toLowerCase())
-                    )
-                    const isSelected = selectedEntreprises.has(entreprise.siren)
-
-                    return (
-                      <button
-                        key={entreprise.siren || index}
-                        type="button"
-                        onClick={() => toggleEntrepriseSelection(entreprise.siren)}
-                        className={`w-full text-left p-4 bg-white border-2 rounded-lg transition-all group ${
-                          isSelected
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Checkbox */}
-                          <div className="flex-shrink-0 mt-0.5">
-                            <div
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                                isSelected
-                                  ? 'bg-purple-600 border-purple-600'
-                                  : 'bg-white border-gray-300 group-hover:border-purple-400'
-                              }`}
-                            >
-                              {isSelected && <Check className="h-3 w-3 text-white" />}
-                            </div>
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start gap-2 mb-1">
-                              <Building2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                              <p className="font-semibold text-gray-900 group-hover:text-purple-700 truncate">
-                                {entreprise.nom_complet || entreprise.nom_raison_sociale}
-                              </p>
-                            </div>
-
-                            <p className="text-sm text-gray-600 ml-6 mb-2">
-                              {entreprise.siege?.adresse || 'Adresse non disponible'}
-                            </p>
-
-                            {dirigeant && (
-                              <div className="ml-6 mb-2">
-                                <p className="text-sm text-purple-700 font-medium">
-                                  {dirigeant.prenoms} {dirigeant.nom} - {dirigeant.qualite || 'Dirigeant'}
-                                </p>
-                              </div>
-                            )}
-
-                            <div className="flex flex-wrap gap-2 ml-6">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                                SIREN: {entreprise.siren}
-                              </span>
-                              {entreprise.activite_principale && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                                  {entreprise.activite_principale}
-                                </span>
-                              )}
-                              {entreprise.etat_administratif === 'A' ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                                  Active
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
-                                  Cessée
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Bouton pour ajouter les entreprises sélectionnées */}
-                {selectedEntreprises.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleAddSelectedEntreprises}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <Plus className="h-5 w-5" />
-                    Ajouter {selectedEntreprises.size} entreprise{selectedEntreprises.size > 1 ? 's' : ''} comme associé{selectedEntreprises.size > 1 ? 's' : ''}
-                  </button>
-                )}
-              </div>
-            )}
+          {selectedEntreprises.size > 0 && (
+            <button
+              type="button"
+              onClick={handleAddSelectedEntreprises}
+              className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter {selectedEntreprises.size} entreprise{selectedEntreprises.size > 1 ? 's' : ''} comme associé{selectedEntreprises.size > 1 ? 's' : ''}
+            </button>
+          )}
         </div>
       )}
     </div>

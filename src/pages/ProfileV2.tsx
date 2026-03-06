@@ -1,12 +1,6 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, Building2, Plus, User } from 'lucide-react'
-import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
+import React, { useState, useRef } from 'react'
+import { Users, Building2, Plus, User, MoreHorizontal, Pencil, Trash2, MapPin, Mail, Phone } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
-import AnimatedButton from '@/components/ui/AnimatedButton'
-import EmptyState from '@/components/ui/EmptyState'
-import SectionHeader from '@/components/ui/SectionHeader'
 import AssocieFormV2 from '@/components/forms/AssocieFormV2'
 import SocieteFormV2 from '@/components/forms/SocieteFormV2'
 import { useStructuresContext as useStructures } from '@/contexts/StructuresContext'
@@ -19,16 +13,10 @@ import {
   mapFormeJuridiqueToType
 } from '@/services/entrepriseApi'
 
-// CACHE BUST VERSION: v2025-10-24-10h34 - SI VOUS NE VOYEZ PAS CE LOG, VOTRE CACHE EST CORROMPU
-console.log('🚨🚨🚨 PROFILEV2.TSX CHARGÉ - VERSION: v2025-10-24-10h34 🚨🚨🚨')
-console.log('🚨🚨🚨 SI VOUS NE VOYEZ PAS CE MESSAGE, VOTRE NAVIGATEUR UTILISE DU CODE EN CACHE 🚨🚨🚨')
 import { TypeStructure } from '@/types'
 import { getApeLabel } from '@/utils/apeCodeUtils'
 
 const ProfileV2: React.FC = () => {
-  console.log('🔥🔥🔥 PROFILEV2 COMPONENT MONTÉ - VERSION: v2025-10-24-10h34 🔥🔥🔥')
-
-  const navigate = useNavigate()
   const [showAssocieModal, setShowAssocieModal] = useState(false)
   const [showSocieteModal, setShowSocieteModal] = useState(false)
   const [editingAssocieId, setEditingAssocieId] = useState<string | null>(null)
@@ -43,15 +31,6 @@ const ProfileV2: React.FC = () => {
   // Filtrer les structures par type
   const associes = structures.filter(s => s.type === 'PERSONNE_PHYSIQUE')
   const societes = structures.filter(s => s.type !== 'PERSONNE_PHYSIQUE')
-
-  // Debug: Log modal states whenever they change
-  React.useEffect(() => {
-    console.log('showAssocieModal:', showAssocieModal, 'editingAssocieId:', editingAssocieId)
-  }, [showAssocieModal, editingAssocieId])
-
-  React.useEffect(() => {
-    console.log('showSocieteModal:', showSocieteModal, 'editingSocieteId:', editingSocieteId)
-  }, [showSocieteModal, editingSocieteId])
 
   const handleCreateAssocie = async (data: any) => {
     if (editingAssocieId) {
@@ -105,8 +84,6 @@ const ProfileV2: React.FC = () => {
       localStorage.setItem('lastCreatedStructureId', newStructure.id)
       window.dispatchEvent(new CustomEvent('structureCreated', { detail: { structureId: newStructure.id } }))
     }
-    setShowAssocieModal(false)
-    setEditingAssocieId(null)
   }
 
   // Handler pour ajouter plusieurs entreprises comme associés depuis la recherche par dirigeant
@@ -409,22 +386,16 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
       localStorage.setItem('lastCreatedStructureId', newStructure.id)
       window.dispatchEvent(new CustomEvent('structureCreated', { detail: { structureId: newStructure.id } }))
     }
-    setShowSocieteModal(false)
-    setEditingSocieteId(null)
   }
 
   const handleEditAssocie = (id: string) => {
-    console.log('handleEditAssocie called with id:', id)
     setEditingAssocieId(id)
     setShowAssocieModal(true)
-    console.log('Modal state set to true')
   }
 
   const handleEditSociete = (id: string) => {
-    console.log('handleEditSociete called with id:', id)
     setEditingSocieteId(id)
     setShowSocieteModal(true)
-    console.log('Modal state set to true')
   }
 
   const handleDeleteStructure = (id: string) => {
@@ -467,233 +438,250 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
     setEditingSocieteId(null)
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Page title */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/')}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Mes Structures</h1>
-              <p className="text-sm text-gray-500">
-                Gérez vos associés, sociétés et projets immobiliers
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-      {/* Content */}
+  // Fermer le menu quand on clique ailleurs
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null)
+      }
+    }
+    if (openMenuId) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openMenuId])
+
+  // Compter les sociétés liées à un associé
+  const countLinkedSocietes = (associeId: string) => {
+    return societes.filter(s =>
+      s.personneMorale?.associes?.some((a: any) => a.structureId === associeId) ||
+      s.detenteurs?.some((d: any) => d.porteurId === associeId)
+    ).length
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F7F7F7]">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-        {/* Section Associés */}
-        <div className="space-y-6">
-          <SectionHeader
-            title="Mes Associés"
-            subtitle="Personnes physiques participant à vos projets immobiliers"
-            icon={Users}
-            action={
-              <AnimatedButton
-                onClick={() => setShowAssocieModal(true)}
-                icon={Users}
-                iconRight={Plus}
-                variant="blue"
-              >
-                Ajouter un associé
-              </AnimatedButton>
-            }
-          />
+
+        {/* ── Section Associés ── */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Associés <span className="text-gray-400 font-normal text-2xl">({associes.length})</span>
+            </h1>
+            <button
+              onClick={() => setShowAssocieModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-coral-200 via-honey-200 to-honey-100 hover:from-coral-300 hover:via-honey-300 hover:to-honey-200 text-gray-900 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter
+            </button>
+          </div>
 
           {associes.length === 0 ? (
-            <EmptyState
-              title="Ajouter un associé"
-              description="Créez le profil d'une personne physique participant à vos projets immobiliers"
-              actionLabel="Créer mon premier associé"
-              onAction={() => setShowAssocieModal(true)}
-              icon={Users}
-              variant="blue"
-            />
+            <div
+              onClick={() => setShowAssocieModal(true)}
+              className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-12 text-center cursor-pointer hover:border-gray-300 transition-colors"
+            >
+              <div className="mx-auto w-12 h-12 rounded-full bg-coral-100 flex items-center justify-center mb-4">
+                <Users className="h-6 w-6 text-coral-500" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">Ajouter un associé</p>
+              <p className="text-xs text-gray-500 mt-1">Personnes physiques participant à vos projets</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {associes.map(associe => {
-                // Récupérer la photo depuis associe.photo ou associe.personnePhysique?.photo
+            <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+              {/* En-têtes de colonnes */}
+              <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_100px_48px] gap-4 px-6 py-3 border-b border-gray-100 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <span>Associé</span>
+                <span>Adresse</span>
+                <span>Sociétés</span>
+                <span></span>
+              </div>
+              {/* Lignes */}
+              {associes.map((associe, index) => {
                 const photoUrl = associe.photo || associe.personnePhysique?.photo
-                console.log('Photo pour', associe.nom, ':', photoUrl ? 'présente' : 'absente', associe)
-
+                const linkedCount = countLinkedSocietes(associe.id)
                 return (
-                  <Card
+                  <div
                     key={associe.id}
-                    className="bg-gray-50 hover:bg-gray-200 transition-colors cursor-pointer"
                     onClick={() => handleEditAssocie(associe.id)}
+                    className={`flex items-center sm:grid sm:grid-cols-[1fr_1fr_100px_48px] gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      index < associes.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
                   >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {associe.nom}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {associe.email || 'Personne physique'}
-                          </p>
-                        </div>
-                        {/* Avatar avec photo de profil ou initiales */}
-                        <div className="flex-shrink-0 relative w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden shadow-lg">
-                          {photoUrl ? (
-                            <img
-                              src={photoUrl}
-                              alt={associe.nom}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            associe.personnePhysique?.prenom || associe.personnePhysique?.nom ? (
-                              <span className="text-white text-xl font-bold">
-                                {associe.personnePhysique?.prenom?.[0]?.toUpperCase() || ''}{associe.personnePhysique?.nom?.[0]?.toUpperCase() || ''}
-                              </span>
-                            ) : (
-                              <User className="h-8 w-8 text-white" />
-                            )
-                          )}
-                        </div>
+                    {/* Avatar + Nom */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-coral-100 flex items-center justify-center overflow-hidden">
+                        {photoUrl ? (
+                          <img src={photoUrl} alt={associe.nom} className="w-full h-full object-cover" />
+                        ) : associe.personnePhysique?.prenom || associe.personnePhysique?.nom ? (
+                          <span className="text-coral-600 text-sm font-semibold">
+                            {associe.personnePhysique?.prenom?.[0]?.toUpperCase() || ''}{associe.personnePhysique?.nom?.[0]?.toUpperCase() || ''}
+                          </span>
+                        ) : (
+                          <User className="h-5 w-5 text-coral-500" />
+                        )}
                       </div>
-
-                    <div className="space-y-2 text-sm text-gray-600 mb-4">
-                      <div className="flex justify-between">
-                        <span>Adresse:</span>
-                        <span className="font-medium text-right">{associe.adresse || 'Non renseignée'}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{associe.nom}</p>
+                        <p className="text-xs text-gray-400 truncate">{associe.email || 'Personne physique'}</p>
                       </div>
                     </div>
-
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleDeleteStructure(associe.id)}
-                        className="w-full text-red-600 hover:bg-red-50"
+                    {/* Adresse */}
+                    <div className="hidden sm:block">
+                      <p className="text-sm text-gray-500 truncate">{associe.adresse || '—'}</p>
+                    </div>
+                    {/* Sociétés liées */}
+                    <div className="hidden sm:block">
+                      {linkedCount > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-honey-50 text-honey-700 border border-honey-200">
+                          {linkedCount}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </div>
+                    {/* Menu "..." */}
+                    <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === associe.id ? null : associe.id)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
                       >
-                        Supprimer
-                      </Button>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                      {openMenuId === associe.id && (
+                        <div ref={menuRef} className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                          <button
+                            onClick={() => { handleEditAssocie(associe.id); setOpenMenuId(null) }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Modifier
+                          </button>
+                          <button
+                            onClick={() => { handleDeleteStructure(associe.id); setOpenMenuId(null) }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </Card>
                 )
               })}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Section Sociétés */}
-        <div className="space-y-6">
-          <SectionHeader
-            title="Mes Sociétés"
-            subtitle="SCI, SARL, SASU et autres structures juridiques"
-            icon={Building2}
-            variant="green"
-            action={
-              <AnimatedButton
-                onClick={() => setShowSocieteModal(true)}
-                icon={Building2}
-                iconRight={Plus}
-                variant="green"
-              >
-                Créer une société
-              </AnimatedButton>
-            }
-          />
+        {/* ── Section Sociétés ── */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Sociétés <span className="text-gray-400 font-normal text-2xl">({societes.length})</span>
+            </h1>
+            <button
+              onClick={() => setShowSocieteModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-coral-200 via-honey-200 to-honey-100 hover:from-coral-300 hover:via-honey-300 hover:to-honey-200 text-gray-900 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              Créer
+            </button>
+          </div>
 
           {societes.length === 0 ? (
-            <EmptyState
-              title="Créer une société"
-              description="Ajoutez une SCI, SARL, SASU ou toute autre structure juridique pour vos projets"
-              actionLabel="Créer ma première société"
-              onAction={() => setShowSocieteModal(true)}
-              icon={Building2}
-              variant="green"
-            />
+            <div
+              onClick={() => setShowSocieteModal(true)}
+              className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-12 text-center cursor-pointer hover:border-gray-300 transition-colors"
+            >
+              <div className="mx-auto w-12 h-12 rounded-full bg-honey-100 flex items-center justify-center mb-4">
+                <Building2 className="h-6 w-6 text-honey-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">Créer une société</p>
+              <p className="text-xs text-gray-500 mt-1">SCI, SARL, SASU et autres structures juridiques</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {societes.map(societe => (
-                <Card
+            <div className="bg-white rounded-xl border border-gray-200/60 overflow-hidden">
+              {/* En-têtes de colonnes */}
+              <div className="hidden sm:grid sm:grid-cols-[1fr_120px_120px_100px_48px] gap-4 px-6 py-3 border-b border-gray-100 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <span>Société</span>
+                <span>SIREN</span>
+                <span>Capital</span>
+                <span>Création</span>
+                <span></span>
+              </div>
+              {/* Lignes */}
+              {societes.map((societe, index) => (
+                <div
                   key={societe.id}
-                  className="bg-gray-50 hover:bg-gray-200 transition-colors cursor-pointer"
                   onClick={() => handleEditSociete(societe.id)}
+                  className={`flex items-center sm:grid sm:grid-cols-[1fr_120px_120px_100px_48px] gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                    index < societes.length - 1 ? 'border-b border-gray-100' : ''
+                  }`}
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded mb-2">
-                          {societe.type}
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {societe.nom}
-                        </h3>
-                      </div>
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <Building2 className="h-5 w-5 text-green-600" />
-                      </div>
+                  {/* Icon + Nom + Type */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-honey-100 flex items-center justify-center">
+                      <Building2 className="h-5 w-5 text-honey-600" />
                     </div>
-
-                    <div className="space-y-2 text-sm text-gray-600 mb-4">
-                      {societe.personneMorale?.activitePrincipale && (
-                        <div className="pb-2 border-b border-gray-200">
-                          <span className="text-xs text-gray-500">Activité principale:</span>
-                          <p className="text-sm font-medium text-gray-800 mt-1">
-                            {getApeLabel(societe.personneMorale.activitePrincipale)}
-                          </p>
-                        </div>
-                      )}
-                      {societe.personneMorale?.siren && (
-                        <div className="flex justify-between">
-                          <span>SIREN:</span>
-                          <span className="font-medium">{societe.personneMorale.siren}</span>
-                        </div>
-                      )}
-                      {societe.adresse && (
-                        <div className="flex justify-between">
-                          <span>Adresse:</span>
-                          <span className="font-medium text-right">{societe.adresse}</span>
-                        </div>
-                      )}
-                      {societe.personneMorale?.capitalSocial !== undefined && societe.personneMorale.capitalSocial > 0 && (
-                        <div className="flex justify-between">
-                          <span>Capital social:</span>
-                          <span className="font-medium">{societe.personneMorale.capitalSocial.toLocaleString('fr-FR')} €</span>
-                        </div>
-                      )}
-                      {societe.personneMorale?.dateCreation && (
-                        <div className="flex justify-between">
-                          <span>Création:</span>
-                          <span className="font-medium">{new Date(societe.personneMorale.dateCreation).toLocaleDateString('fr-FR')}</span>
-                        </div>
-                      )}
-                      {societe.personneMorale?.objetSocial && societe.personneMorale.objetSocial !== societe.personneMorale.activitePrincipale && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <span className="text-xs text-gray-500">Objet social:</span>
-                          <p className="text-xs font-medium text-gray-700 mt-1 line-clamp-2">
-                            {societe.personneMorale.objetSocial}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleDeleteStructure(societe.id)}
-                        className="w-full text-red-600 hover:bg-red-50"
-                      >
-                        Supprimer
-                      </Button>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{societe.nom}</p>
+                      <span className="inline-block text-[11px] font-medium text-honey-700 bg-honey-50 border border-honey-200 px-1.5 py-0.5 rounded-md">
+                        {societe.type}
+                      </span>
                     </div>
                   </div>
-                </Card>
+                  {/* SIREN */}
+                  <div className="hidden sm:block">
+                    <p className="text-sm text-gray-500 font-mono">{societe.personneMorale?.siren || '—'}</p>
+                  </div>
+                  {/* Capital */}
+                  <div className="hidden sm:block">
+                    <p className="text-sm text-gray-500">
+                      {societe.personneMorale?.capitalSocial && societe.personneMorale.capitalSocial > 0
+                        ? `${societe.personneMorale.capitalSocial.toLocaleString('fr-FR')} €`
+                        : '—'}
+                    </p>
+                  </div>
+                  {/* Date création */}
+                  <div className="hidden sm:block">
+                    <p className="text-sm text-gray-500">
+                      {societe.personneMorale?.dateCreation
+                        ? new Date(societe.personneMorale.dateCreation).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })
+                        : '—'}
+                    </p>
+                  </div>
+                  {/* Menu "..." */}
+                  <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setOpenMenuId(openMenuId === societe.id ? null : societe.id)}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {openMenuId === societe.id && (
+                      <div ref={menuRef} className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                        <button
+                          onClick={() => { handleEditSociete(societe.id); setOpenMenuId(null) }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Modifier
+                        </button>
+                        <button
+                          onClick={() => { handleDeleteStructure(societe.id); setOpenMenuId(null) }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
       </main>
 
       {/* Modal Associé */}
@@ -743,13 +731,13 @@ ${errors.length > 0 ? `   ⚠️ ${errors.length} erreur(s) rencontrée(s) - vé
           <div className="flex justify-end gap-3">
             <button
               onClick={cancelDelete}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
             >
               Annuler
             </button>
             <button
               onClick={confirmDelete}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
+              className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors"
             >
               Supprimer
             </button>

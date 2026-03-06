@@ -108,7 +108,7 @@ export function BiensCreditsSection({
           <select
             value={item.type}
             onChange={(e) => onUpdate('type', e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl"
           >
             {TYPES_BIEN.map(type => (
               <option key={type.value} value={type.value}>{type.label}</option>
@@ -129,7 +129,7 @@ export function BiensCreditsSection({
             value={item.adresse}
             onChange={(e) => onUpdate('adresse', e.target.value)}
             placeholder="Adresse du bien"
-            className="w-full px-2 py-1 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl"
           />
         ) : (
           <span className="text-gray-900">{item.adresse}</span>
@@ -146,7 +146,7 @@ export function BiensCreditsSection({
             type="number"
             value={item.valeurEstimee}
             onChange={(e) => onUpdate('valeurEstimee', Number(e.target.value))}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl text-right"
           />
         ) : (
           <span className="text-gray-900 font-semibold">{item.valeurEstimee.toLocaleString('fr-FR')} EUR</span>
@@ -164,7 +164,7 @@ export function BiensCreditsSection({
               type="number"
               value={item.loyerMensuel || 0}
               onChange={(e) => onUpdate('loyerMensuel', Number(e.target.value))}
-              className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+              className="w-full px-2 py-1 border border-gray-200 rounded-xl text-right"
             />
           ) : (
             <span className="text-gray-900">{(item.loyerMensuel || 0).toLocaleString('fr-FR')} EUR</span>
@@ -185,7 +185,7 @@ export function BiensCreditsSection({
           <select
             value={item.type}
             onChange={(e) => onUpdate('type', e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl"
           >
             {TYPES_CREDIT.map(type => (
               <option key={type.value} value={type.value}>{type.label}</option>
@@ -206,7 +206,7 @@ export function BiensCreditsSection({
             value={item.organisme}
             onChange={(e) => onUpdate('organisme', e.target.value)}
             placeholder="Nom de la banque"
-            className="w-full px-2 py-1 border border-gray-300 rounded"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl"
           />
         ) : (
           <span className="text-gray-900">{item.organisme}</span>
@@ -243,7 +243,7 @@ export function BiensCreditsSection({
           type="number"
           value={item.montantInitial}
           onChange={(e) => handleCreditUpdate(item.id, 'montantInitial', Number(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
         />
       </div>
       <div>
@@ -252,7 +252,7 @@ export function BiensCreditsSection({
           type="date"
           value={item.dateDebut}
           onChange={(e) => handleCreditUpdate(item.id, 'dateDebut', e.target.value)}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
         />
       </div>
       <div>
@@ -261,7 +261,7 @@ export function BiensCreditsSection({
           type="number"
           value={item.nombreMois}
           onChange={(e) => handleCreditUpdate(item.id, 'nombreMois', Number(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
         />
       </div>
       <div>
@@ -271,7 +271,7 @@ export function BiensCreditsSection({
           step="0.01"
           value={item.tauxInteret}
           onChange={(e) => handleCreditUpdate(item.id, 'tauxInteret', Number(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
         />
       </div>
       {biensState.items.length > 0 && (
@@ -280,7 +280,7 @@ export function BiensCreditsSection({
           <select
             value={item.bienAssocie || ''}
             onChange={(e) => onUpdate('bienAssocie', e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
           >
             <option value="">Aucun</option>
             {biensState.items.map(bien => (
@@ -344,7 +344,7 @@ export function BiensCreditsSection({
 
       {/* Recapitulatif */}
       {(biensState.items.length > 0 || creditsState.items.length > 0) && (
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
           <h5 className="font-semibold text-gray-800 mb-3">Recapitulatif patrimoine</h5>
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
@@ -359,10 +359,10 @@ export function BiensCreditsSection({
                 - {totalCredits.toLocaleString('fr-FR')} EUR
               </span>
             </div>
-            <div className="pt-2 border-t border-gray-300">
+            <div className="pt-2 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-800">Patrimoine net immobilier</span>
-                <span className={`text-xl font-bold ${patrimoineNet >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                <span className={`text-xl font-bold ${patrimoineNet >= 0 ? 'text-gray-900' : 'text-red-700'}`}>
                   {patrimoineNet.toLocaleString('fr-FR')} EUR
                 </span>
               </div>

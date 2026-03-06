@@ -40,7 +40,7 @@ export function IdentiteSection({
     >
       <div className="space-y-4">
         {/* Photo de profil */}
-        <div className="flex items-start gap-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-start gap-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <div className="flex-shrink-0">
             <div className="relative">
               {identite.photo ? (
@@ -50,7 +50,7 @@ export function IdentiteSection({
                   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center border-4 border-white shadow-lg">
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-600 to-gray-900 flex items-center justify-center border-4 border-white shadow-lg">
                   {identite.prenom || identite.nom ? (
                     <span className="text-white text-4xl font-bold">
                       {identite.prenom?.[0]?.toUpperCase() || ''}{identite.nom?.[0]?.toUpperCase() || ''}
@@ -77,7 +77,7 @@ export function IdentiteSection({
                   onChange={handlePhotoChange}
                   className="hidden"
                 />
-                <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                <span className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -88,7 +88,7 @@ export function IdentiteSection({
                 <button
                   type="button"
                   onClick={() => onChange({ ...identite, photo: '' })}
-                  className="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-lg hover:bg-red-200 transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-xl hover:bg-red-200 transition-colors"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -103,6 +103,8 @@ export function IdentiteSection({
         {/* Recherche par dirigeant */}
         {showRechercheDirecteant && onAddEntreprisesAsAssocies && (
           <RechercheEntrepriseParDirigeant
+            nom={identite.nom}
+            prenoms={identite.prenom}
             onAddEntreprises={onAddEntreprisesAsAssocies}
           />
         )}
@@ -146,7 +148,7 @@ export function IdentiteSection({
             <select
               value={identite.situationFamiliale}
               onChange={(e) => updateField('situationFamiliale', e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
             >
               <option value="Celibataire">Celibataire</option>
               <option value="Marie">Marie(e)</option>

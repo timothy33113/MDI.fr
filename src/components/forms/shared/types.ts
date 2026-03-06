@@ -6,6 +6,8 @@ export interface Revenu {
   libelle: string
   montantMensuel: number
   nombreMois?: number
+  periodicite?: 'mensuel' | 'annuel'
+  montantSaisi?: number
 }
 
 export interface Charge {
@@ -15,12 +17,21 @@ export interface Charge {
   montantMensuel: number
 }
 
+export interface Coproprietaire {
+  structureId: string
+  structureNom: string
+  pourcentage: number
+}
+
 export interface BienImmobilier {
   id: string
   type: 'Residence_Principale' | 'Residence_Secondaire' | 'Investissement_Locatif'
   adresse: string
   valeurEstimee: number
   loyerMensuel?: number
+  pourcentageDetention?: number
+  coproprietaires?: Coproprietaire[]
+  photos?: string[]
 }
 
 export interface Credit {
@@ -34,6 +45,8 @@ export interface Credit {
   bienAssocie?: string
   capitalRestantDu?: number
   mensualite?: number
+  pourcentageDetention?: number
+  coproprietaires?: Coproprietaire[]
 }
 
 export interface CompteBancaire {

@@ -110,7 +110,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
               rows={3}
               placeholder="Décrivez brièvement le projet..."
             />
@@ -138,7 +138,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
                 <select
                   value={porteur.structureId}
                   onChange={(e) => updatePorteur(index, 'structureId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
                   required
                 >
                   <option value="">Sélectionnez une structure</option>
@@ -167,7 +167,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
               <button
                 type="button"
                 onClick={() => removePorteur(index)}
-                className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-xl"
                 disabled={porteurs.length === 1}
               >
                 <Trash2 className="h-5 w-5" />
@@ -186,7 +186,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
           </Button>
 
           {totalPourcentage !== 100 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
               ⚠️ Le total des porteurs doit être exactement 100%
             </div>
           )}
@@ -230,7 +230,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
               <select
                 value={bienImmobilier.type}
                 onChange={(e) => setBienImmobilier({ ...bienImmobilier, type: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
               >
                 <option value="Appartement">Appartement</option>
                 <option value="Maison">Maison</option>
@@ -264,7 +264,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
               <select
                 value={bienImmobilier.etatActuel}
                 onChange={(e) => setBienImmobilier({ ...bienImmobilier, etatActuel: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
               >
                 <option value="Neuf">Neuf</option>
                 <option value="Bon">Bon état</option>
@@ -280,7 +280,7 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
               <select
                 value={bienImmobilier.destinationBien}
                 onChange={(e) => setBienImmobilier({ ...bienImmobilier, destinationBien: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
               >
                 <option value="Location">Location</option>
                 <option value="Residence_Principale">Résidence principale</option>
@@ -370,8 +370,8 @@ const ProjetForm: React.FC<ProjetFormProps> = ({ structures, onSubmit, onCancel 
             />
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <p className="text-sm text-gray-800">
               💡 Les calculs de rentabilité (cash-flow, ROI, etc.) seront effectués automatiquement après création du projet.
             </p>
           </div>

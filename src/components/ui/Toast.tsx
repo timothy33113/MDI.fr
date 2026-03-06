@@ -81,7 +81,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose }) => {
   return (
     <div
       className={cn(
-        'relative w-full max-w-sm overflow-hidden rounded-lg border shadow-lg',
+        'relative w-full max-w-sm overflow-hidden rounded-xl border shadow-lg',
         'transform transition-all duration-300 ease-out',
         config.bgColor,
         config.borderColor,
@@ -130,15 +130,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose }) => {
         </div>
       </div>
 
-      {/* Barre de progression */}
-      {duration > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
-          <div
-            className={cn('h-full transition-all duration-100 ease-linear', config.progressColor)}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
+      {/* Barre de progression supprimée */}
     </div>
   )
 }

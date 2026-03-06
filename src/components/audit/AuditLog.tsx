@@ -128,13 +128,13 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
   const getActionColor = (action: string) => {
     switch (action) {
       case 'CREATE':
-        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+        return 'bg-green-100 text-green-700'
       case 'UPDATE':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+        return 'bg-blue-100 text-blue-700'
       case 'DELETE':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+        return 'bg-red-100 text-red-700'
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+        return 'bg-gray-100 text-gray-700'
     }
   }
 
@@ -180,9 +180,9 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
   const renderDiff = (log: AuditLogEntry) => {
     if (log.action === 'CREATE') {
       return (
-        <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">Donnees creees:</p>
-          <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">
+        <div className="mt-3 p-3 bg-green-50 rounded-xl">
+          <p className="text-sm font-medium text-green-700 mb-2">Donnees creees:</p>
+          <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">
             {JSON.stringify(log.newData, null, 2)}
           </pre>
         </div>
@@ -191,9 +191,9 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
 
     if (log.action === 'DELETE') {
       return (
-        <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">Donnees supprimees:</p>
-          <pre className="text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">
+        <div className="mt-3 p-3 bg-red-50 rounded-xl">
+          <p className="text-sm font-medium text-red-700 mb-2">Donnees supprimees:</p>
+          <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">
             {JSON.stringify(log.oldData, null, 2)}
           </pre>
         </div>
@@ -228,32 +228,32 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
 
       if (changes.length === 0) {
         return (
-          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Aucune modification visible</p>
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+            <p className="text-sm text-gray-500">Aucune modification visible</p>
           </div>
         )
       }
 
       return (
         <div className="mt-3 space-y-2">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Modifications:</p>
+          <p className="text-sm font-medium text-gray-700">Modifications:</p>
           {changes.map((change, index) => (
-            <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <div key={index} className="p-3 bg-gray-50 rounded-xl">
+              <p className="text-xs font-medium text-gray-600 mb-1">
                 {change.field}
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs">
-                  <span className="text-red-600 dark:text-red-400">- </span>
-                  <span className="text-gray-700 dark:text-gray-300">
+                <div className="p-2 bg-red-50 rounded-xl text-xs">
+                  <span className="text-red-600">- </span>
+                  <span className="text-gray-700">
                     {typeof change.oldValue === 'object'
                       ? JSON.stringify(change.oldValue, null, 2).substring(0, 100)
                       : String(change.oldValue ?? '(vide)')}
                   </span>
                 </div>
-                <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded text-xs">
-                  <span className="text-green-600 dark:text-green-400">+ </span>
-                  <span className="text-gray-700 dark:text-gray-300">
+                <div className="p-2 bg-green-50 rounded-xl text-xs">
+                  <span className="text-green-600">+ </span>
+                  <span className="text-gray-700">
                     {typeof change.newValue === 'object'
                       ? JSON.stringify(change.newValue, null, 2).substring(0, 100)
                       : String(change.newValue ?? '(vide)')}
@@ -282,7 +282,7 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
         <div className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">Chargement de l'historique...</span>
+            <span className="ml-3 text-gray-600">Chargement de l'historique...</span>
           </div>
         </div>
       </Card>
@@ -294,7 +294,7 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
       {/* Header with filters */}
       {!entityId && (
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-gray-900">
             Historique des modifications
           </h2>
           <Button
@@ -314,13 +314,13 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
         <Card className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type d'entite
               </label>
               <select
                 value={filterEntityType}
                 onChange={(e) => { setFilterEntityType(e.target.value); setPage(1); }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Tous</option>
                 <option value="structure">Structures</option>
@@ -328,25 +328,25 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date debut
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date fin
               </label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -362,15 +362,15 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
 
       {/* Error message */}
       {error && (
-        <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <p className="text-red-700 dark:text-red-400">{error}</p>
+        <Card className="p-4 bg-red-50 border-red-200">
+          <p className="text-red-700">{error}</p>
         </Card>
       )}
 
       {/* Timeline */}
       {logs.length === 0 ? (
         <Card className="p-6">
-          <div className="text-center text-gray-500 dark:text-gray-400">
+          <div className="text-center text-gray-500">
             <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Aucun historique disponible</p>
           </div>
@@ -378,14 +378,14 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
+          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
 
           {/* Log entries */}
           <div className="space-y-4">
             {logs.map((log) => (
               <div key={log.id} className="relative pl-14">
                 {/* Timeline dot */}
-                <div className="absolute left-4 top-4 w-5 h-5 rounded-full bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                <div className="absolute left-4 top-4 w-5 h-5 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
                   {getActionIcon(log.action)}
                 </div>
 
@@ -397,23 +397,23 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}>
                           {getActionLabel(log.action)}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                           {getEntityIcon(log.entityType)}
                           {getEntityLabel(log.entityType)}
                         </span>
                       </div>
-                      <h4 className="mt-2 font-medium text-gray-900 dark:text-white">
+                      <h4 className="mt-2 font-medium text-gray-900">
                         {getEntityName(log)}
                       </h4>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {formatDate(log.createdAt)}
                       </span>
                       <button
                         onClick={() => toggleExpand(log.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="p-1 text-gray-400 hover:text-gray-600"
                       >
                         {expandedLogs.has(log.id) ? (
                           <ChevronUp className="h-4 w-4" />
@@ -436,7 +436,7 @@ const AuditLog: React.FC<AuditLogProps> = ({ entityType, entityId }) => {
       {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600">
             Page {pagination.page} sur {pagination.totalPages} ({pagination.total} entrees)
           </p>
           <div className="flex gap-2">

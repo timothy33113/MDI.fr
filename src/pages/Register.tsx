@@ -4,10 +4,12 @@ import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
-import { Home, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, UserIcon } from 'lucide-react'
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
+    nom: '',
+    prenom: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -36,8 +38,13 @@ const Register: React.FC = () => {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères')
+    if (formData.password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères')
+      return
+    }
+
+    if (!formData.nom.trim() || !formData.prenom.trim()) {
+      setError('Le nom et le prénom sont obligatoires')
       return
     }
 
@@ -47,8 +54,8 @@ const Register: React.FC = () => {
       await register({
         email: formData.email,
         password: formData.password,
-        nom: 'User',
-        prenom: 'Test'
+        nom: formData.nom.trim(),
+        prenom: formData.prenom.trim()
       })
       navigate('/')
     } catch (err: any) {
@@ -59,27 +66,44 @@ const Register: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Home className="h-8 w-8 text-white" />
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">MDI.fr</h1>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Créer un compte
+            Creer un compte
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Commencez à créer vos dossiers bancaires immobiliers
+          <p className="mt-2 text-sm text-gray-500">
+            Commencez a creer vos dossiers bancaires immobiliers
           </p>
         </div>
 
         <Card>
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Prénom"
+                name="prenom"
+                value={formData.prenom}
+                onChange={handleChange}
+                required
+                placeholder="Jean"
+              />
+              <Input
+                label="Nom"
+                name="nom"
+                value={formData.nom}
+                onChange={handleChange}
+                required
+                placeholder="Dupont"
+              />
+            </div>
 
             <Input
               label="Adresse email"
@@ -100,7 +124,7 @@ const Register: React.FC = () => {
                 onChange={handleChange}
                 required
                 icon={<Lock className="h-4 w-4" />}
-                helperText="Minimum 6 caractères"
+                helperText="Minimum 8 caractères"
               />
               <button
                 type="button"
@@ -148,11 +172,11 @@ const Register: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Déjà un compte ?{' '}
+            <p className="text-sm text-gray-500">
+              Deja un compte ?{' '}
               <Link
                 to="/login"
-                className="font-medium text-primary-600 hover:text-primary-500"
+                className="font-medium text-gray-900 hover:text-gray-700"
               >
                 Se connecter
               </Link>

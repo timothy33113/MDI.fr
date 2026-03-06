@@ -220,6 +220,7 @@ function getDocumentsPersonnePhysique(structureId: string, nom: string): Checkli
     { categorie: 'Revenus', nomDocument: 'Bulletins de salaire', description: `3 derniers bulletins de salaire de ${nom}`, concerneStructureId: structureId, obligatoire: true, quantiteRequise: '3 derniers mois', validiteJours: 90, statut: 'Non_Fourni' },
     { categorie: 'Revenus', nomDocument: "Avis d'imposition", description: `Avis d'imposition N-1 et N-2 de ${nom}`, concerneStructureId: structureId, obligatoire: true, quantiteRequise: 'N-1 et N-2', statut: 'Non_Fourni' },
     { categorie: 'Patrimoine', nomDocument: 'Releves bancaires', description: `3 derniers releves de compte bancaire de ${nom}`, concerneStructureId: structureId, obligatoire: true, quantiteRequise: '3 derniers mois', validiteJours: 90, statut: 'Non_Fourni' },
+    { categorie: 'Patrimoine', nomDocument: "Releves d'epargne", description: `Releves ou captures d'ecran des comptes d'epargne de ${nom} (livret A, PEL, assurance-vie, etc.)`, concerneStructureId: structureId, obligatoire: true, quantiteRequise: 'Releve le plus recent', validiteJours: 90, statut: 'Non_Fourni' },
     { categorie: 'Patrimoine', nomDocument: "Tableaux d'amortissement", description: `Tableaux d'amortissement des credits en cours de ${nom}`, concerneStructureId: structureId, obligatoire: false, statut: 'Non_Fourni' },
   ];
 }

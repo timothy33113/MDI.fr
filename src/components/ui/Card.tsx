@@ -23,7 +23,7 @@ const Card: React.FC<CardProps> = ({
   return (
     <div
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors',
+        'bg-white rounded-2xl border border-gray-200/60 transition-all duration-200',
         paddingClasses[padding],
         className
       )}
@@ -34,4 +34,4 @@ const Card: React.FC<CardProps> = ({
   )
 }
 
-export default Card 
+export default Card

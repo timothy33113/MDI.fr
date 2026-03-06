@@ -105,19 +105,19 @@ const MonCompte: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-[#F7F7F7] py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Retour au tableau de bord
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Mon Compte</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-gray-900">Mon Compte</h1>
+          <p className="mt-2 text-gray-600">
             Gérez vos informations personnelles et votre mot de passe
           </p>
         </div>
@@ -126,14 +126,14 @@ const MonCompte: React.FC = () => {
         <Card className="mb-6">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-coral-100 rounded-xl">
+                <User className="h-5 w-5 text-coral-500" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-gray-900">
                   Informations personnelles
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   Mettez à jour vos informations de profil
                 </p>
               </div>
@@ -142,33 +142,33 @@ const MonCompte: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Prénom
                   </label>
                   <input
                     type="text"
                     value={prenom}
                     onChange={(e) => setPrenom(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                     placeholder="Votre prénom"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nom
                   </label>
                   <input
                     type="text"
                     value={nom}
                     onChange={(e) => setNom(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                     placeholder="Votre nom"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <div className="relative">
@@ -177,36 +177,36 @@ const MonCompte: React.FC = () => {
                     type="email"
                     value={user.email}
                     disabled
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   L'email ne peut pas être modifié
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Téléphone
                 </label>
                 <input
                   type="tel"
                   value={telephone}
                   onChange={(e) => setTelephone(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                   placeholder="06 12 34 56 78"
                 />
               </div>
 
               {saveError && (
-                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+                <div className="flex items-center gap-2 text-red-600 text-sm">
                   <AlertCircle className="h-4 w-4" />
                   {saveError}
                 </div>
               )}
 
               {saveSuccess && (
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm">
+                <div className="flex items-center gap-2 text-green-600 text-sm">
                   <Check className="h-4 w-4" />
                   Informations sauvegardées avec succès
                 </div>
@@ -230,14 +230,14 @@ const MonCompte: React.FC = () => {
         <Card>
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
-                <Lock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="p-2 bg-honey-100 rounded-xl">
+                <Lock className="h-5 w-5 text-honey-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-gray-900">
                   Changer le mot de passe
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   Sécurisez votre compte avec un nouveau mot de passe
                 </p>
               </div>
@@ -245,7 +245,7 @@ const MonCompte: React.FC = () => {
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mot de passe actuel
                 </label>
                 <div className="relative">
@@ -253,14 +253,14 @@ const MonCompte: React.FC = () => {
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                     placeholder="Entrez votre mot de passe actuel"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -268,7 +268,7 @@ const MonCompte: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nouveau mot de passe
                 </label>
                 <div className="relative">
@@ -276,25 +276,25 @@ const MonCompte: React.FC = () => {
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                     placeholder="Entrez votre nouveau mot de passe"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   8 caractères minimum, 1 majuscule, 1 chiffre
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirmer le nouveau mot de passe
                 </label>
                 <div className="relative">
@@ -302,14 +302,14 @@ const MonCompte: React.FC = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors"
                     placeholder="Confirmez votre nouveau mot de passe"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -317,14 +317,14 @@ const MonCompte: React.FC = () => {
               </div>
 
               {passwordError && (
-                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+                <div className="flex items-center gap-2 text-red-600 text-sm">
                   <AlertCircle className="h-4 w-4" />
                   {passwordError}
                 </div>
               )}
 
               {passwordSuccess && (
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm">
+                <div className="flex items-center gap-2 text-green-600 text-sm">
                   <Check className="h-4 w-4" />
                   Mot de passe changé avec succès
                 </div>
@@ -346,7 +346,7 @@ const MonCompte: React.FC = () => {
         </Card>
 
         {/* Informations du compte */}
-        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-6 text-center text-sm text-gray-500">
           <p>Compte créé le {user.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR') : 'N/A'}</p>
         </div>
       </div>

@@ -92,7 +92,7 @@ const createProjetSchema = z.object({
   porteurs: z.array(porteurSchema).optional(),
   elementsBien: z.array(elementBienSchema).optional(),
   travaux: z.array(travauxSchema).optional(),
-  photos: z.array(z.union([z.string(), z.object({ url: z.string() }).passthrough()])).optional(),
+  photos: z.array(z.union([z.string(), z.object({ url: z.string(), position: z.number().optional() }).passthrough()])).optional(),
   photoCouverture: z.string().optional().nullable(),
   comparables: z.array(z.object({
     url: z.string(),
@@ -272,12 +272,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const size = typeof photo === 'string' ? 0 : (photo.size || 0);
           const mimeType = typeof photo === 'string' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
           const description = typeof photo === 'string' ? null : (photo.description || null);
+          const position = typeof photo === 'string' ? i : (photo.position ?? i);
 
           await sql`
             INSERT INTO photos_v2 (
-              bien_immobilier_id, url, filename, type, size, mime_type, description
+              bien_immobilier_id, url, filename, type, size, mime_type, description, position
             ) VALUES (
-              ${bienId}, ${url}, ${filename}, ${type}, ${size}, ${mimeType}, ${description}
+              ${bienId}, ${url}, ${filename}, ${type}, ${size}, ${mimeType}, ${description}, ${position}
             )
           `;
         }

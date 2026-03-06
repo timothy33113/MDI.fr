@@ -372,7 +372,47 @@ class PDFGeneratorPro {
       this.doc.setTextColor(...this.colors.textLight)
       this.doc.text(pctStr + ' du projet', this.pageWidth - this.margin - 5, this.currentY + 3, { align: 'right' })
 
-      this.currentY += 18
+      this.currentY += 15
+
+      // Phrase descriptive du porteur (comme dans les vrais dossiers bancaires)
+      this.doc.setFontSize(9)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+
+      if (isPersonnePhysique && pp) {
+        const parts: string[] = []
+        const prenomNom = [pp.prenom, struct?.nom?.split(' ').pop()].filter(Boolean).join(' ')
+        const age = pp.dateNaissance ? Math.floor((Date.now() - new Date(pp.dateNaissance).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0
+        let intro = prenomNom || nom
+        if (age > 0) intro += `, ${age} ans`
+        if (pp.situationFamiliale) intro += `, ${pp.situationFamiliale.replace(/_/g, ' ').toLowerCase()}`
+        parts.push(intro + '.')
+        if (pp.emploi) {
+          let job = `${pp.statutProfessionnel === 'Salarie' ? 'Salarie(e)' : pp.statutProfessionnel?.replace(/_/g, ' ') || ''} en tant que ${pp.emploi}`
+          if (pp.employeur) job += ` chez ${pp.employeur}`
+          if (pp.typeContrat) job += ` (${pp.typeContrat.replace(/_/g, ' ')})`
+          if (pp.anciennete) job += ` depuis ${pp.anciennete}`
+          parts.push(job + '.')
+        }
+        const descText = parts.join(' ')
+        const descLines = this.doc.splitTextToSize(descText, this.contentWidth - 10)
+        this.doc.text(descLines, this.margin + 5, this.currentY)
+        this.currentY += descLines.length * 4.5 + 4
+      } else if (pm) {
+        const parts: string[] = []
+        const forme = pm.formeJuridique || struct?.type?.replace(/_/g, ' ') || ''
+        let intro = `${pm.denominationSociale || nom}, ${forme}`
+        if (pm.capitalSocial) intro += ` au capital de ${this.fmt(pm.capitalSocial)} EUR`
+        parts.push(intro + '.')
+        if (pm.representantLegal) {
+          const rep = pm.representantLegal
+          parts.push(`Representee par ${rep.prenom} ${rep.nom}, ${(rep.fonction || '').replace(/_/g, ' ')}.`)
+        }
+        const descText = parts.join(' ')
+        const descLines = this.doc.splitTextToSize(descText, this.contentWidth - 10)
+        this.doc.text(descLines, this.margin + 5, this.currentY)
+        this.currentY += descLines.length * 4.5 + 4
+      }
 
       // Deux colonnes
       const colLeft = this.margin + 5
@@ -733,6 +773,164 @@ class PDFGeneratorPro {
         this.currentY += 5
       }
     }
+
+    // === TABLEAU RECAPITULATIF FINANCIER DES PORTEURS ===
+    this.addPage()
+    this.sectionPages['   2- Synthese financiere'] = this.getPageNumber()
+    this.drawSubTitle('2. Synthese financiere des porteurs')
+
+    // Collecter les totaux
+    let totalRevenus = 0
+    let totalCharges = 0
+    let totalPatrimoine = 0
+    let totalCreditsPatrimoine = 0
+    let totalLoyersPatrimoine = 0
+
+    const porteurRows: { nom: string; revenus: number; charges: number; patrimoine: number; loyers: number }[] = []
+
+    for (const porteur of projet.porteurs) {
+      const struct = (porteur as any).structure
+      const pp = struct?.personnePhysique
+      const pm = struct?.personneMorale
+      const nom = struct?.nom || 'Porteur'
+
+      let revenus = 0
+      let charges = 0
+      let patrimoine = 0
+      let loyers = 0
+
+      if (pp?.revenus) {
+        revenus = Number(pp.revenus.totalMensuel) || 0
+      } else if (pm?.chiffreAffairesAnnuel) {
+        revenus = (Number(pm.resultatNet) || Number(pm.chiffreAffairesAnnuel) || 0) / 12
+      }
+      if (pp?.charges) {
+        charges = Number(pp.charges.totalMensuel) || 0
+      }
+
+      // Patrimoine
+      const data = pp || pm
+      const pat = data?.patrimoine
+      const biens: any[] = pat?.biensImmobiliers || data?.biens || []
+      for (const b of biens) {
+        patrimoine += Number(b.valeurEstimee || b.valeur || 0)
+        loyers += Number(b.loyerMensuel || b.loyer || 0)
+      }
+      const epargne = Number(pat?.epargneDisponible || 0)
+      patrimoine += epargne
+
+      // Associes (pour SCI)
+      const associes = pm?.associes
+      if (associes && Array.isArray(associes)) {
+        for (const a of associes) {
+          const aPP = a.structure?.personnePhysique
+          if (aPP?.revenus) revenus += Number(aPP.revenus.totalMensuel) || 0
+          if (aPP?.charges) charges += Number(aPP.charges.totalMensuel) || 0
+          const aB: any[] = aPP?.patrimoine?.biensImmobiliers || []
+          for (const b of aB) {
+            patrimoine += Number(b.valeurEstimee || b.valeur || 0)
+            loyers += Number(b.loyerMensuel || b.loyer || 0)
+          }
+        }
+      }
+
+      totalRevenus += revenus
+      totalCharges += charges
+      totalPatrimoine += patrimoine
+      totalLoyersPatrimoine += loyers
+
+      porteurRows.push({ nom, revenus, charges, patrimoine, loyers })
+    }
+
+    // Patrimoine total du credit
+    for (const porteur of projet.porteurs) {
+      const struct = (porteur as any).structure
+      const pp = struct?.personnePhysique
+      const pm = struct?.personneMorale
+      const data = pp || pm
+      const credits: any[] = data?.patrimoine?.creditsEnCours || data?.credits || []
+      for (const c of credits) totalCreditsPatrimoine += Number(c.mensualite || c.montantMensuel || 0)
+      const associes = pm?.associes
+      if (associes && Array.isArray(associes)) {
+        for (const a of associes) {
+          const aC: any[] = a.structure?.personnePhysique?.patrimoine?.creditsEnCours || []
+          for (const c of aC) totalCreditsPatrimoine += Number(c.mensualite || c.montantMensuel || 0)
+        }
+      }
+    }
+
+    // Tableau recap par porteur
+    const recapCols = {
+      nom: this.margin + 3,
+      revenus: this.margin + 55,
+      charges: this.margin + 90,
+      patrimoine: this.margin + 125,
+    }
+
+    this.doc.setFillColor(...this.colors.primary)
+    this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 8, 'F')
+    this.doc.setFontSize(8)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.white)
+    this.doc.text('Porteur', recapCols.nom, this.currentY)
+    this.doc.text('Revenus mensuels', recapCols.revenus, this.currentY)
+    this.doc.text('Charges mensuelles', recapCols.charges, this.currentY)
+    this.doc.text('Patrimoine estime', recapCols.patrimoine, this.currentY)
+    this.currentY += 8
+
+    porteurRows.forEach((row, i) => {
+      if (i % 2 === 0) {
+        this.doc.setFillColor(...this.colors.bgLight)
+        this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 8, 'F')
+      }
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      this.doc.text(row.nom.substring(0, 25), recapCols.nom, this.currentY)
+      this.doc.text(`${this.fmt(row.revenus)} EUR`, recapCols.revenus, this.currentY)
+      this.doc.text(`${this.fmt(row.charges)} EUR`, recapCols.charges, this.currentY)
+      this.doc.text(`${this.fmt(row.patrimoine)} EUR`, recapCols.patrimoine, this.currentY)
+      this.currentY += 8
+    })
+
+    // Ligne total
+    this.doc.setFillColor(...this.colors.primary)
+    this.doc.rect(this.margin, this.currentY - 4, this.contentWidth, 9, 'F')
+    this.doc.setFontSize(8)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.white)
+    this.doc.text('TOTAL', recapCols.nom, this.currentY + 1)
+    this.doc.text(`${this.fmt(totalRevenus)} EUR`, recapCols.revenus, this.currentY + 1)
+    this.doc.text(`${this.fmt(totalCharges)} EUR`, recapCols.charges, this.currentY + 1)
+    this.doc.text(`${this.fmt(totalPatrimoine)} EUR`, recapCols.patrimoine, this.currentY + 1)
+    this.currentY += 18
+
+    // Indicateurs cles
+    const tauxEndettementActuel = totalRevenus > 0 ? (totalCharges / totalRevenus * 100) : 0
+    const capaciteRemboursement = totalRevenus - totalCharges
+
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.primary)
+    this.doc.text('Indicateurs cles', this.margin + 5, this.currentY)
+    this.currentY += 8
+
+    const indicators: [string, string][] = [
+      ['Revenus mensuels totaux', `${this.fmt(totalRevenus)} EUR`],
+      ['Charges mensuelles totales', `${this.fmt(totalCharges)} EUR`],
+      ['Capacite de remboursement mensuelle', `${this.fmt(capaciteRemboursement)} EUR`],
+      ['Taux d\'endettement actuel', `${tauxEndettementActuel.toFixed(1)} %`],
+      ['Revenus locatifs patrimoine existant', `${this.fmt(totalLoyersPatrimoine)} EUR/mois`],
+      ['Patrimoine total estime', `${this.fmt(totalPatrimoine)} EUR`],
+    ]
+
+    indicators.forEach(([label, value], i) => {
+      this.drawTableRow(label, value, i)
+    })
+
+    // Stocker les totaux pour la section financement
+    ;(this as any)._totalRevenusPorteurs = totalRevenus
+    ;(this as any)._totalChargesPorteurs = totalCharges
   }
 
   // ==========================================
@@ -1073,9 +1271,38 @@ class PDFGeneratorPro {
     this.sectionPages['   1- Situation geographique'] = this.getPageNumber()
 
     this.drawSectionTitle('II. Le projet')
+
+    // Texte d'introduction du projet (comme dans les vrais dossiers)
+    const bien = projet.bienImmobilier
+    const fin = projet.financement
+    if (bien) {
+      const typeBienIntro = (bien.type || '').replace(/_/g, ' ').toLowerCase()
+      const destBien = (bien.destinationBien || '').replace(/_/g, ' ').toLowerCase()
+      const supIntro = bien.superficie ? `${Math.round(Number(bien.superficie))} m2` : ''
+      const prixAchat = fin ? Number(fin.prixAchat) || 0 : 0
+      const montantTravaux = fin ? Number(fin.montantTravaux) || 0 : 0
+
+      let introText = `Le projet porte sur l'acquisition d'un ${typeBienIntro || 'bien immobilier'}`
+      if (supIntro) introText += ` de ${supIntro}`
+      introText += ` situe a ${bien.ville || ''} (${bien.codePostal || ''})`
+      if (destBien) introText += `, a destination de ${destBien}`
+      introText += '.'
+      if (prixAchat > 0) {
+        introText += ` Le prix d'acquisition s'eleve a ${this.fmt(prixAchat)} EUR`
+        if (montantTravaux > 0) introText += `, auquel s'ajoutent ${this.fmt(montantTravaux)} EUR de travaux`
+        introText += '.'
+      }
+
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      const introLines = this.doc.splitTextToSize(introText, this.contentWidth)
+      this.doc.text(introLines, this.margin, this.currentY)
+      this.currentY += introLines.length * 5 + 8
+    }
+
     this.drawSubTitle('1. Situation geographique')
 
-    const bien = projet.bienImmobilier
     if (!bien) {
       this.doc.setFontSize(10)
       this.doc.setFont('helvetica', 'normal')
@@ -1083,30 +1310,6 @@ class PDFGeneratorPro {
       this.doc.text('Aucune information sur le bien.', this.margin, this.currentY)
       return
     }
-
-    // Adresse encadree
-    this.doc.setFillColor(...this.colors.bgLight)
-    this.doc.roundedRect(this.margin, this.currentY - 4, this.contentWidth, 28, 2, 2, 'F')
-    this.doc.setFillColor(...this.colors.primaryLight)
-    this.doc.rect(this.margin, this.currentY - 4, 3, 28, 'F')
-
-    this.doc.setFontSize(12)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.setTextColor(...this.colors.primary)
-    this.doc.text(bien.adresse || '', this.margin + 10, this.currentY + 4)
-
-    this.doc.setFontSize(11)
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.setTextColor(...this.colors.text)
-    this.doc.text(`${bien.codePostal || ''} ${bien.ville || ''}`, this.margin + 10, this.currentY + 12)
-
-    this.doc.setTextColor(...this.colors.textLight)
-    this.doc.setFontSize(10)
-    const typeStr = bien.type ? bien.type.replace(/_/g, ' ') : ''
-    const supStr = bien.superficie ? `${Math.round(Number(bien.superficie))} m2` : ''
-    this.doc.text([typeStr, supStr].filter(Boolean).join(' - '), this.margin + 10, this.currentY + 19)
-
-    this.currentY += 38
 
     // Phrase de presentation
     const typePresentation = (bien.type || '').replace(/_/g, ' ').toLowerCase()
@@ -1155,10 +1358,11 @@ class PDFGeneratorPro {
       // Colonnes du tableau composition
       const colX = {
         type: this.margin + 3,
-        superficie: this.margin + 50,
-        loyerActuel: this.margin + 80,
-        loyerEstime: this.margin + 110,
-        etat: this.margin + 143,
+        etage: this.margin + 42,
+        superficie: this.margin + 58,
+        loyerActuel: this.margin + 85,
+        loyerEstime: this.margin + 115,
+        etat: this.margin + 145,
       }
 
       this.doc.setFillColor(...this.colors.primary)
@@ -1167,6 +1371,7 @@ class PDFGeneratorPro {
       this.doc.setFont('helvetica', 'bold')
       this.doc.setTextColor(...this.colors.white)
       this.doc.text('Type', colX.type, this.currentY)
+      this.doc.text('Etage', colX.etage, this.currentY)
       this.doc.text('Superficie', colX.superficie, this.currentY)
       this.doc.text('Loyer actuel', colX.loyerActuel, this.currentY)
       this.doc.text('Loyer estime', colX.loyerEstime, this.currentY)
@@ -1192,6 +1397,10 @@ class PDFGeneratorPro {
         const pieces = Number(elem.nombrePieces) || 0
         const typeLabel = pieces > 0 ? `${type} - T${pieces}` : type
         this.doc.text(typeLabel, colX.type, this.currentY)
+
+        // Etage
+        const etage = elem.etage != null && elem.etage !== '' ? `${elem.etage}` : '-'
+        this.doc.text(etage, colX.etage, this.currentY)
 
         // Superficie
         const superficie = Number(elem.superficie) || 0
@@ -1239,35 +1448,13 @@ class PDFGeneratorPro {
     if (!bien) return
 
     const hasTravaux = bien.travauxPrevus && bien.travauxPrevus.length > 0
-    const hasRentabiliteInfo = bien.loyerMensuelEstime || bien.chargesMensuelles || bien.taxeFonciere
 
-    if (!hasTravaux && !hasRentabiliteInfo) return
+    if (!hasTravaux) return
 
     this.addPage()
     this.sectionPages['   3- Le bien et son projet'] = this.getPageNumber()
 
     this.drawSubTitle('3. Le bien et son projet')
-
-    // Revenus locatifs estimes
-    if (hasRentabiliteInfo) {
-      this.doc.setFillColor(...this.colors.bgLight)
-      this.doc.roundedRect(this.margin, this.currentY - 4, this.contentWidth, 22, 2, 2, 'F')
-
-      this.doc.setFontSize(10)
-      this.doc.setFont('helvetica', 'normal')
-      this.doc.setTextColor(...this.colors.text)
-
-      if (bien.loyerMensuelEstime) {
-        this.doc.text(`Loyer mensuel estime : ${this.fmt(bien.loyerMensuelEstime)} EUR/mois`, this.margin + 5, this.currentY + 3)
-      }
-      if (bien.chargesMensuelles) {
-        this.doc.text(`Charges mensuelles : ${this.fmt(bien.chargesMensuelles)} EUR/mois`, this.margin + 5, this.currentY + 11)
-      }
-      if (bien.taxeFonciere) {
-        this.doc.text(`Taxe fonciere : ${this.fmt(bien.taxeFonciere)} EUR/an`, this.pageWidth / 2, this.currentY + 3)
-      }
-      this.currentY += 28
-    }
 
     // Travaux prevus
     if (hasTravaux) {
@@ -1429,28 +1616,141 @@ class PDFGeneratorPro {
 
     this.currentY += 38
 
-    // Calcul loyer 70% vs mensualites
-    if (projet.bienImmobilier?.loyerMensuelEstime && mensTotal > 0) {
-      const loyer = Number(projet.bienImmobilier.loyerMensuelEstime)
-      const loyerNet = loyer * 0.7
-      const cashflow = loyerNet - mensTotal
+    // === PREVISIONNEL LOCATIF ===
+    const loyerEstime = Number(projet.bienImmobilier?.loyerMensuelEstime) || 0
+    const chargesMens = Number(projet.bienImmobilier?.chargesMensuelles) || 0
+    const taxeFonciere = Number(projet.bienImmobilier?.taxeFonciere) || 0
+
+    if (loyerEstime > 0) {
+      this.checkPageBreak(80)
 
       this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      this.doc.text('Previsionnel locatif', this.margin + 5, this.currentY)
+      this.currentY += 4
+
+      // Texte explicatif 70%
+      this.doc.setFontSize(9)
       this.doc.setFont('helvetica', 'normal')
       this.doc.setTextColor(...this.colors.text)
-      this.doc.text(
-        `Les revenus locatifs pris a 70 % representent ${this.fmt(loyerNet)} EUR/mois.`,
-        this.margin, this.currentY
-      )
-      this.currentY += 6
+      const texte70 = 'Conformement aux pratiques bancaires, les revenus locatifs sont pris en compte a hauteur de 70 % du loyer brut, afin d\'integrer les risques de vacance locative, d\'impayes et de charges non recuperables.'
+      const lines70 = this.doc.splitTextToSize(texte70, this.contentWidth)
+      this.doc.text(lines70, this.margin, this.currentY)
+      this.currentY += lines70.length * 4.5 + 6
 
-      const cfColor = cashflow >= 0 ? this.colors.green : this.colors.red
-      this.doc.setTextColor(...cfColor)
+      // Tableau previsionnel annuel
+      const loyerNet70 = loyerEstime * 0.7
+      const loyerBrutAnnuel = loyerEstime * 12
+      const chargesAnnuelles = chargesMens * 12
+      const mensualiteAnnuelle = mensTotal * 12
+      const revenuNetAnnuel = loyerBrutAnnuel - chargesAnnuelles - taxeFonciere
+      const cashflowAnnuel = revenuNetAnnuel - mensualiteAnnuelle
+
+      const prevItems: [string, string][] = [
+        ['Loyer brut mensuel', `${this.fmt(loyerEstime)} EUR`],
+        ['Loyer brut annuel', `${this.fmt(loyerBrutAnnuel)} EUR`],
+        ['Revenus locatifs a 70 %', `${this.fmt(loyerNet70)} EUR/mois`],
+      ]
+      if (chargesAnnuelles > 0) prevItems.push(['Charges copropriete (annuel)', `- ${this.fmt(chargesAnnuelles)} EUR`])
+      if (taxeFonciere > 0) prevItems.push(['Taxe fonciere (annuel)', `- ${this.fmt(taxeFonciere)} EUR`])
+      prevItems.push(['Revenu net annuel avant credit', `${this.fmt(revenuNetAnnuel)} EUR`])
+      prevItems.push(['Mensualite credit (annuel)', `- ${this.fmt(mensualiteAnnuelle)} EUR`])
+      prevItems.push(['Cash-flow net annuel', `${cashflowAnnuel >= 0 ? '+' : ''}${this.fmt(cashflowAnnuel)} EUR`])
+
+      prevItems.forEach(([label, value], i) => {
+        const isBold = label.startsWith('Cash-flow') || label.startsWith('Revenu net')
+        this.checkPageBreak(10)
+        if (i % 2 === 0) {
+          this.doc.setFillColor(...this.colors.bgLight)
+          this.doc.rect(this.margin, this.currentY - 5, this.contentWidth, 9, 'F')
+        }
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', isBold ? 'bold' : 'normal')
+        if (label.startsWith('Cash-flow')) {
+          this.doc.setTextColor(cashflowAnnuel >= 0 ? 46 : 220, cashflowAnnuel >= 0 ? 125 : 53, cashflowAnnuel >= 0 ? 50 : 69)
+        } else {
+          this.doc.setTextColor(...this.colors.text)
+        }
+        this.doc.text(label, this.margin + 5, this.currentY)
+        this.doc.text(value, this.pageWidth - this.margin - 5, this.currentY, { align: 'right' })
+        this.currentY += 9
+      })
+
+      this.currentY += 5
+
+      // Cash-flow mensuel net resume
+      const cashflowMensuel = loyerNet70 - mensTotal
+      this.doc.setFillColor(cashflowMensuel >= 0 ? 240 : 255, cashflowMensuel >= 0 ? 253 : 243, cashflowMensuel >= 0 ? 244 : 243)
+      this.doc.roundedRect(this.margin, this.currentY - 4, this.contentWidth, 14, 2, 2, 'F')
+      this.doc.setFillColor(cashflowMensuel >= 0 ? 46 : 220, cashflowMensuel >= 0 ? 125 : 53, cashflowMensuel >= 0 ? 50 : 69)
+      this.doc.rect(this.margin, this.currentY - 4, 3, 14, 'F')
+      this.doc.setFontSize(10)
       this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(cashflowMensuel >= 0 ? 46 : 220, cashflowMensuel >= 0 ? 125 : 53, cashflowMensuel >= 0 ? 50 : 69)
       this.doc.text(
-        `Soit un ${cashflow >= 0 ? 'excedent' : 'deficit'} de ${this.fmt(Math.abs(cashflow))} EUR/mois.`,
-        this.margin, this.currentY
+        `Cash-flow mensuel net (a 70 %) : ${cashflowMensuel >= 0 ? '+' : ''}${this.fmt(cashflowMensuel)} EUR/mois`,
+        this.margin + 8, this.currentY + 3
       )
+      this.currentY += 20
+    }
+
+    // === TAUX D'ENDETTEMENT AVANT / APRES PROJET ===
+    const totalRevenusPorteurs = Number((this as any)._totalRevenusPorteurs) || 0
+    const totalChargesPorteurs = Number((this as any)._totalChargesPorteurs) || 0
+
+    if (totalRevenusPorteurs > 0 && mensTotal > 0) {
+      this.checkPageBreak(55)
+
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      this.doc.text('Taux d\'endettement', this.margin + 5, this.currentY)
+      this.currentY += 8
+
+      const endettementAvant = (totalChargesPorteurs / totalRevenusPorteurs * 100)
+      const loyerNet70Mensuel = loyerEstime * 0.7
+      const chargesApres = totalChargesPorteurs + mensTotal
+      const revenusApres = totalRevenusPorteurs + loyerNet70Mensuel
+      const endettementApres = revenusApres > 0 ? (chargesApres / revenusApres * 100) : 0
+
+      const endItems: [string, string][] = [
+        ['Revenus mensuels actuels', `${this.fmt(totalRevenusPorteurs)} EUR`],
+        ['Charges mensuelles actuelles', `${this.fmt(totalChargesPorteurs)} EUR`],
+        ['Taux d\'endettement actuel', `${endettementAvant.toFixed(1)} %`],
+        ['+ Revenus locatifs a 70 %', `+ ${this.fmt(loyerNet70Mensuel)} EUR`],
+        ['+ Mensualite du pret', `+ ${this.fmt(mensTotal)} EUR`],
+        ['Revenus mensuels apres projet', `${this.fmt(revenusApres)} EUR`],
+        ['Charges mensuelles apres projet', `${this.fmt(chargesApres)} EUR`],
+        ['Taux d\'endettement apres projet', `${endettementApres.toFixed(1)} %`],
+      ]
+
+      endItems.forEach(([label, value], i) => {
+        const isBold = label.startsWith('Taux')
+        this.checkPageBreak(10)
+        if (i % 2 === 0) {
+          this.doc.setFillColor(...this.colors.bgLight)
+          this.doc.rect(this.margin, this.currentY - 5, this.contentWidth, 9, 'F')
+        }
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', isBold ? 'bold' : 'normal')
+        if (isBold) {
+          const val = label.includes('apres') ? endettementApres : endettementAvant
+          this.doc.setTextColor(val <= 33 ? 46 : val <= 40 ? 217 : 220, val <= 33 ? 125 : val <= 40 ? 119 : 38, val <= 33 ? 50 : val <= 40 ? 6 : 38)
+        } else {
+          this.doc.setTextColor(...this.colors.text)
+        }
+        this.doc.text(label, this.margin + 5, this.currentY)
+        this.doc.text(value, this.pageWidth - this.margin - 5, this.currentY, { align: 'right' })
+        this.currentY += 9
+      })
+
+      // Note regle 33%
+      this.currentY += 3
+      this.doc.setFontSize(8)
+      this.doc.setFont('helvetica', 'italic')
+      this.doc.setTextColor(...this.colors.textLight)
+      this.doc.text('Le taux d\'endettement est generalement accepte jusqu\'a 33-35 % des revenus.', this.margin, this.currentY)
     }
   }
 
@@ -1648,6 +1948,134 @@ class PDFGeneratorPro {
   }
 
   // ==========================================
+  // ANNEXES - LISTE DES DOCUMENTS REQUIS
+  // ==========================================
+
+  private generateAnnexes(projet: Projet): void {
+    const docs = projet.checklistDocuments
+    if (!docs || docs.length === 0) return
+
+    this.addPage()
+    this.sectionPages['V. Annexes'] = this.getPageNumber()
+
+    this.drawSectionTitle('V. Annexes')
+
+    this.doc.setFontSize(10)
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setTextColor(...this.colors.text)
+    this.doc.text(
+      'Liste des pieces justificatives a fournir pour la constitution du dossier bancaire.',
+      this.margin, this.currentY
+    )
+    this.currentY += 10
+
+    // Grouper par categorie
+    const categorieLabels: Record<string, string> = {
+      'Identite': 'Identite',
+      'Revenus': 'Revenus',
+      'Patrimoine': 'Patrimoine',
+      'Fiscalite': 'Fiscalite',
+      'Societe': 'Societe',
+      'Bien_Immobilier': 'Bien immobilier',
+      'Travaux': 'Travaux',
+      'Autre': 'Autres documents',
+    }
+
+    const grouped: Record<string, typeof docs> = {}
+    for (const doc of docs) {
+      const cat = doc.categorie || 'Autre'
+      if (!grouped[cat]) grouped[cat] = []
+      grouped[cat].push(doc)
+    }
+
+    // Ordre des categories
+    const ordreCategories = ['Identite', 'Revenus', 'Patrimoine', 'Fiscalite', 'Societe', 'Bien_Immobilier', 'Travaux', 'Autre']
+
+    let annexeNum = 1
+    for (const cat of ordreCategories) {
+      const catDocs = grouped[cat]
+      if (!catDocs || catDocs.length === 0) continue
+
+      this.checkPageBreak(20 + catDocs.length * 8)
+
+      // Sous-titre categorie
+      this.doc.setFontSize(10)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...this.colors.primary)
+      this.doc.text(`${categorieLabels[cat] || cat}`, this.margin + 5, this.currentY)
+      this.currentY += 6
+
+      for (const docItem of catDocs) {
+        this.checkPageBreak(10)
+
+        // Numero annexe
+        this.doc.setFontSize(9)
+        this.doc.setFont('helvetica', 'normal')
+        this.doc.setTextColor(...this.colors.text)
+
+        const nomDoc = docItem.nomDocument || 'Document'
+        const quantite = docItem.quantiteRequise ? ` (${docItem.quantiteRequise})` : ''
+        const obligStr = docItem.obligatoire ? '' : ' [facultatif]'
+        const label = `Annexe ${annexeNum} - ${nomDoc}${quantite}${obligStr}`
+
+        // Checkbox statut
+        const statut = docItem.statut || 'Non_Fourni'
+        const statutSymbol = statut === 'Fourni' || statut === 'Valide' ? '[x]' : '[ ]'
+        const statutColor: [number, number, number] =
+          statut === 'Fourni' || statut === 'Valide' ? this.colors.green :
+          statut === 'En_Attente' ? this.colors.orange : this.colors.textLight
+
+        this.doc.setTextColor(...statutColor)
+        this.doc.setFont('helvetica', 'bold')
+        this.doc.text(statutSymbol, this.margin + 5, this.currentY)
+
+        this.doc.setTextColor(...this.colors.text)
+        this.doc.setFont('helvetica', 'normal')
+        const truncLabel = label.length > 80 ? label.substring(0, 77) + '...' : label
+        this.doc.text(truncLabel, this.margin + 15, this.currentY)
+
+        this.currentY += 7
+        annexeNum++
+      }
+
+      this.currentY += 4
+    }
+
+    // Resume
+    this.currentY += 5
+    this.drawLine(this.currentY, this.colors.bgMedium)
+    this.currentY += 8
+
+    const totalDocs = docs.length
+    const fournis = docs.filter(d => d.statut === 'Fourni' || d.statut === 'Valide').length
+    const enAttente = docs.filter(d => d.statut === 'En_Attente').length
+    const nonFournis = totalDocs - fournis - enAttente
+
+    this.doc.setFontSize(9)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setTextColor(...this.colors.primary)
+    this.doc.text('Recapitulatif', this.margin + 5, this.currentY)
+    this.currentY += 7
+
+    const recapItems: [string, string, [number, number, number]][] = [
+      [`Documents fournis`, `${fournis} / ${totalDocs}`, this.colors.green],
+      [`Documents en attente`, `${enAttente}`, this.colors.orange],
+      [`Documents manquants`, `${nonFournis}`, nonFournis > 0 ? this.colors.red : this.colors.textLight],
+    ]
+
+    recapItems.forEach(([label, value, color]) => {
+      this.doc.setFontSize(9)
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setTextColor(...this.colors.text)
+      this.doc.text(label, this.margin + 10, this.currentY)
+      this.doc.setFont('helvetica', 'bold')
+      this.doc.setTextColor(...color)
+      this.doc.text(value, this.margin + 80, this.currentY)
+      this.currentY += 6
+    })
+  }
+
+  // ==========================================
   // PIEDS DE PAGE
   // ==========================================
 
@@ -1695,6 +2123,9 @@ class PDFGeneratorPro {
 
     // Section comparables (async: chargement des images)
     await safeAsync('Comparables', () => this.generateComparables(projet))
+
+    // Section annexes
+    safe('Annexes', () => this.generateAnnexes(projet))
 
     // Phase 3: Sommaire (insere en page 2)
     try {

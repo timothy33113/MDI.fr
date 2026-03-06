@@ -15,10 +15,10 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className }) => {
     <button
       onClick={toggleTheme}
       className={cn(
-        'relative inline-flex items-center justify-center w-10 h-10 rounded-lg',
-        'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-        'hover:bg-gray-100 dark:hover:bg-gray-800',
-        'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
+        'relative inline-flex items-center justify-center w-10 h-10 rounded-xl',
+        'text-gray-500 hover:text-gray-700',
+        'hover:bg-gray-100',
+        'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
         'transition-colors duration-200',
         className
       )}

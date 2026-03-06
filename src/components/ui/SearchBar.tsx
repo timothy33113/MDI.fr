@@ -61,7 +61,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div className={cn('relative', className)}>
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <Search className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+        <Search className="h-4 w-4 text-gray-400" />
       </div>
       <input
         ref={inputRef}
@@ -71,16 +71,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
         placeholder={placeholder}
         className={cn(
           'w-full pl-10 pr-12 py-2 text-sm',
-          'border border-gray-300 dark:border-gray-600 rounded-lg',
-          'bg-white dark:bg-gray-800',
-          'text-gray-900 dark:text-gray-100',
-          'placeholder-gray-400 dark:placeholder-gray-500',
-          'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+          'border border-gray-200 rounded-xl',
+          'bg-white',
+          'text-gray-900',
+          'placeholder-gray-400',
+          'focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400',
           'transition-colors'
         )}
       />
       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-        <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+        <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-gray-400 bg-gray-100 rounded border border-gray-200">
           <span className="text-xs">⌘</span>K
         </kbd>
       </div>

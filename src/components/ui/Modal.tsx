@@ -1,6 +1,5 @@
 import React from 'react'
 import { X } from 'lucide-react'
-import Button from './Button'
 
 interface ModalProps {
   isOpen: boolean
@@ -12,7 +11,7 @@ interface ModalProps {
   cancelText?: string
   confirmVariant?: 'primary' | 'danger'
   size?: 'small' | 'medium' | 'large' | 'xlarge'
-  closeOnBackdropClick?: boolean // Nouvelle prop pour contrôler la fermeture au clic extérieur
+  closeOnBackdropClick?: boolean
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -25,7 +24,7 @@ const Modal: React.FC<ModalProps> = ({
   cancelText = 'Annuler',
   confirmVariant = 'primary',
   size = 'medium',
-  closeOnBackdropClick = true // Par défaut, on peut fermer en cliquant à l'extérieur
+  closeOnBackdropClick = true
 }) => {
   if (!isOpen) return null
 
@@ -46,44 +45,51 @@ const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 transition-opacity"
+        className="fixed inset-0 bg-gray-950/30 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]"
         onClick={handleBackdropClick}
       />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-xl ${sizeClasses[size]} w-full ${size === 'small' ? 'max-h-[50vh]' : 'h-[90vh]'} flex flex-col transition-colors`}>
-          {/* Header - Sticky */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-lg sticky top-0 z-10">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <div className={`relative bg-white rounded-3xl shadow-2xl ${sizeClasses[size]} w-full ${size === 'small' ? 'max-h-[50vh]' : size === 'medium' ? 'max-h-[90vh]' : 'h-[90vh]'} flex flex-col animate-[modalIn_0.2s_ease-out]`}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-8 pt-7 pb-2 bg-white rounded-t-3xl sticky top-0 z-10">
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Content - Scrollable */}
-          <div className={`p-4 ${size === 'small' ? '' : 'overflow-y-auto flex-1'}`}>
+          {/* Content */}
+          <div className={`px-8 py-5 ${size === 'small' ? '' : 'overflow-y-auto flex-1'}`}>
             {children}
           </div>
 
-          {/* Footer - Sticky */}
+          {/* Footer */}
           {onConfirm && (
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-lg sticky bottom-0 z-10">
-              <Button variant="outline" onClick={onClose}>
+            <div className="flex justify-end gap-3 px-8 py-5 bg-white rounded-b-3xl sticky bottom-0 z-10">
+              <button
+                onClick={onClose}
+                className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              >
                 {cancelText}
-              </Button>
-              <Button
-                variant={confirmVariant}
+              </button>
+              <button
                 onClick={() => {
                   onConfirm()
                   onClose()
                 }}
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl transition-colors ${
+                  confirmVariant === 'danger'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-gray-900 hover:bg-gray-800 text-white'
+                }`}
               >
                 {confirmText}
-              </Button>
+              </button>
             </div>
           )}
         </div>

@@ -284,7 +284,7 @@ export default function ImageUpload({
   return (
     <div className={cn('w-full', className)}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           {label}
         </label>
       )}
@@ -298,7 +298,7 @@ export default function ImageUpload({
               alt="Preview"
               className={cn(
                 PREVIEW_SIZES[previewSize],
-                'rounded-lg object-cover border-2 border-gray-200 dark:border-gray-700 shadow-sm'
+                'rounded-xl object-cover border-2 border-gray-200 shadow-sm'
               )}
             />
             {!disabled && (
@@ -323,13 +323,13 @@ export default function ImageUpload({
             onDrop={handleDrop}
             onClick={openFileSelector}
             className={cn(
-              'relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all',
+              'relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all',
               isDragging
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500',
+                ? 'border-gray-900 bg-gray-50'
+                : 'border-gray-200 hover:border-gray-400',
               disabled && 'opacity-50 cursor-not-allowed',
-              uploadState.error && 'border-red-300 bg-red-50 dark:bg-red-900/20',
-              uploadState.success && 'border-green-300 bg-green-50 dark:bg-green-900/20'
+              uploadState.error && 'border-red-300 bg-red-50',
+              uploadState.success && 'border-green-300 bg-green-50'
             )}
           >
             <input
@@ -346,15 +346,15 @@ export default function ImageUpload({
               {uploadState.isUploading ? (
                 <>
                   <div className="flex justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Upload en cours...
                   </p>
                   {/* Progress bar */}
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-xs mx-auto">
+                  <div className="w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-200"
+                      className="bg-gray-900 h-2 rounded-full transition-all duration-200"
                       style={{ width: `${uploadState.progress}%` }}
                     />
                   </div>
@@ -363,7 +363,7 @@ export default function ImageUpload({
               ) : uploadState.error ? (
                 <>
                   <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
-                  <p className="text-sm text-red-600 dark:text-red-400">
+                  <p className="text-sm text-red-600">
                     {uploadState.error}
                   </p>
                   <p className="text-xs text-gray-500">Cliquez pour reessayer</p>
@@ -371,19 +371,19 @@ export default function ImageUpload({
               ) : uploadState.success ? (
                 <>
                   <CheckCircle className="h-8 w-8 mx-auto text-green-500" />
-                  <p className="text-sm text-green-600 dark:text-green-400">
+                  <p className="text-sm text-green-600">
                     Image uploadee avec succes!
                   </p>
                 </>
               ) : (
                 <>
                   {isDragging ? (
-                    <Upload className="h-8 w-8 mx-auto text-blue-500" />
+                    <Upload className="h-8 w-8 mx-auto text-gray-700" />
                   ) : (
-                    <ImageIcon className="h-8 w-8 mx-auto text-gray-400 dark:text-gray-500" />
+                    <ImageIcon className="h-8 w-8 mx-auto text-gray-400" />
                   )}
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{placeholder}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                  <p className="text-sm text-gray-600">{placeholder}</p>
+                  <p className="text-xs text-gray-500">
                     {accept
                       .split(',')
                       .map((t) => t.split('/')[1]?.toUpperCase())
@@ -398,7 +398,7 @@ export default function ImageUpload({
       </div>
 
       {helperText && !uploadState.error && (
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+        <p className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   )

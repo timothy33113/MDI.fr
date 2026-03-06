@@ -156,6 +156,68 @@ export async function searchEntrepriseByDirigeant(
 }
 
 /**
+ * Vérifie si une entreprise est un holding (code activité 64.20Z ou nature juridique holding)
+ */
+export function isHolding(entreprise: EntrepriseApiResult): boolean {
+  return (
+    entreprise.activite_principale?.startsWith('64.20') ||
+    entreprise.nature_juridique === '5308'
+  )
+}
+
+/**
+ * Recherche les filiales d'une société mère (PM) en utilisant q=<nom>
+ * puis en filtrant par SIREN exact dans les dirigeants PM.
+ * Pagine jusqu'à maxPages pour trouver toutes les filiales.
+ */
+export async function searchFilialesByPM(
+  denomination: string,
+  sirenPM: string,
+  maxPages: number = 3
+): Promise<EntrepriseApiResult[]> {
+  const filiales: EntrepriseApiResult[] = []
+  const seenSirens = new Set<string>()
+
+  for (let page = 1; page <= maxPages; page++) {
+    try {
+      const params = new URLSearchParams({
+        q: denomination,
+        page: page.toString(),
+        per_page: '25'
+      })
+
+      const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`)
+      if (!response.ok) break
+
+      const data: EntrepriseSearchResponse = await response.json()
+      if (data.results.length === 0) break
+
+      // Filtrer : garder uniquement les sociétés où cette PM est dirigeant
+      for (const result of data.results) {
+        if (result.siren === sirenPM) continue // Exclure la PM elle-même
+        if (seenSirens.has(result.siren)) continue
+
+        const hasPM = result.dirigeants?.some(d =>
+          d.type_dirigeant === 'personne morale' && d.siren === sirenPM
+        )
+        if (hasPM) {
+          filiales.push(result)
+          seenSirens.add(result.siren)
+        }
+      }
+
+      // Si on a déjà trouvé des filiales sur la 1ère page ou qu'il n'y a plus de pages
+      if (page >= data.total_pages) break
+    } catch (error) {
+      console.error(`Erreur recherche filiales page ${page} pour ${denomination}:`, error)
+      break
+    }
+  }
+
+  return filiales
+}
+
+/**
  * Mapper les données de l'API vers le format du formulaire SocieteFormV2
  */
 export function mapEntrepriseToFormData(entreprise: EntrepriseApiResult) {

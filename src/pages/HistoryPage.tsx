@@ -7,26 +7,26 @@ const HistoryPage: React.FC = () => {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-[#F7F7F7] transition-colors">
       {/* Page title */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/')}
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                <Clock className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 bg-purple-100 rounded-xl">
+                <Clock className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-2xl font-bold text-gray-900">
                   Historique
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500">
                   Suivez toutes les modifications apportees a vos structures et projets
                 </p>
               </div>

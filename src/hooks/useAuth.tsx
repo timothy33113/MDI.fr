@@ -50,28 +50,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // Initialize auth state from localStorage
-  useEffect(() => {
+// Restore auth from localStorage synchronously
+function getInitialAuth(): { user: User | null; isAuthenticated: boolean } {
+  try {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-
     if (token && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (err) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+      return { user: JSON.parse(savedUser), isAuthenticated: true };
     }
-  }, []);
+  } catch {}
+  // Dev bypass
+  if (import.meta.env.DEV) {
+    const devUser: User = { id: '1', email: 'test@staging.com', nom: 'Robin', prenom: 'Timothy', createdAt: new Date().toISOString(), emailVerified: true };
+    localStorage.setItem('token', 'dev-bypass');
+    localStorage.setItem('user', JSON.stringify(devUser));
+    return { user: devUser, isAuthenticated: true };
+  }
+  return { user: null, isAuthenticated: false };
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const initial = getInitialAuth();
+  const [user, setUser] = useState<User | null>(initial.user);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(initial.isAuthenticated);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     try {

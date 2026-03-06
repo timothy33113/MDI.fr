@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       photos = await sql`
         SELECT * FROM photos_v2
         WHERE bien_immobilier_id = ${bienImmobilier.id}
-        ORDER BY created_at
+        ORDER BY position, created_at
       `;
     }
 
@@ -227,7 +227,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           description: p.description,
           type: p.type,
           size: p.size,
-          mimeType: p.mime_type
+          mimeType: p.mime_type,
+          position: p.position ?? 0
         }))
       } : null,
       financement: financement ? {

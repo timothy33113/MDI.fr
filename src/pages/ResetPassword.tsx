@@ -81,23 +81,23 @@ const ResetPassword: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center">
+            <div className="mx-auto h-12 w-12 bg-green-600 rounded-xl flex items-center justify-center">
               <CheckCircle className="h-8 w-8 text-white" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Mot de passe reinitialise
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-600">
               Votre mot de passe a ete mis a jour avec succes
             </p>
           </div>
 
           <Card>
             <div className="text-center space-y-4">
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600">
                 Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
               </p>
               <Link to="/login">
@@ -113,16 +113,16 @@ const ResetPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
+          <div className="mx-auto h-12 w-12 bg-gray-900 rounded-xl flex items-center justify-center">
             <Home className="h-8 w-8 text-white" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Nouveau mot de passe
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-600">
             Choisissez un nouveau mot de passe securise
           </p>
         </div>
@@ -130,9 +130,9 @@ const ResetPassword: React.FC = () => {
         <Card>
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
 
@@ -152,13 +152,13 @@ const ResetPassword: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    <EyeOff className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    <Eye className="h-4 w-4 text-gray-400" />
                   )}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500">
                 8 caracteres minimum, 1 majuscule, 1 chiffre
               </p>
             </div>
@@ -178,9 +178,9 @@ const ResetPassword: React.FC = () => {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? (
-                  <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  <EyeOff className="h-4 w-4 text-gray-400" />
                 ) : (
-                  <Eye className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  <Eye className="h-4 w-4 text-gray-400" />
                 )}
               </button>
             </div>
@@ -197,7 +197,7 @@ const ResetPassword: React.FC = () => {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300"
+              className="inline-flex items-center gap-2 text-sm text-gray-900 hover:text-gray-700"
             >
               <ArrowLeft className="h-4 w-4" />
               Retour a la connexion

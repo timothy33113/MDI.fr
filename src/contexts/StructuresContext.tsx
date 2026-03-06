@@ -10,7 +10,7 @@ interface StructuresContextType {
   getStructureById: (id: string) => Structure | null
   updateStructure: (id: string, data: any) => Promise<void>
   deleteStructure: (id: string) => Promise<void>
-  refreshStructures: () => Promise<void>
+  refreshStructures: () => Promise<Structure[]>
 }
 
 const StructuresContext = createContext<StructuresContextType | undefined>(undefined)
@@ -121,7 +121,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, [])
 
-  const refreshStructures = useCallback(async () => {
+  const refreshStructures = useCallback(async (): Promise<Structure[]> => {
     try {
       setLoading(true)
       console.log('🔄 Rafraîchissement des structures depuis l\'API...')
@@ -134,6 +134,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
         }))
         setStructures(fetchedStructures)
         console.log('✅ Structures rafraîchies:', fetchedStructures.length)
+        return fetchedStructures
       }
     } catch (error: any) {
       console.error('❌ Erreur lors du rafraîchissement des structures:', error)
@@ -141,6 +142,7 @@ export const StructuresProvider: React.FC<{ children: ReactNode }> = ({ children
     } finally {
       setLoading(false)
     }
+    return []
   }, [])
 
   const value = {

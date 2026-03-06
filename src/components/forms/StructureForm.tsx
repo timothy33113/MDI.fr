@@ -112,9 +112,9 @@ const StructureForm: React.FC<StructureFormProps> = ({ onSubmit, onCancel }) => 
                 key={t}
                 type="button"
                 onClick={() => handleTypeChange(t)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-xl font-medium transition-colors ${
                   type === t
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-gray-900 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -202,7 +202,7 @@ const StructureForm: React.FC<StructureFormProps> = ({ onSubmit, onCancel }) => 
                 <select
                   value={personnePhysique.situationFamiliale}
                   onChange={(e) => setPersonnePhysique({ ...personnePhysique, situationFamiliale: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
                 >
                   <option value="Celibataire">Célibataire</option>
                   <option value="Marie">Marié(e)</option>
@@ -219,7 +219,7 @@ const StructureForm: React.FC<StructureFormProps> = ({ onSubmit, onCancel }) => 
                 <select
                   value={personnePhysique.statutProfessionnel}
                   onChange={(e) => setPersonnePhysique({ ...personnePhysique, statutProfessionnel: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
                 >
                   <option value="Salarie">Salarié</option>
                   <option value="Independant">Indépendant</option>
@@ -373,7 +373,7 @@ const StructureForm: React.FC<StructureFormProps> = ({ onSubmit, onCancel }) => 
                     ...personneMorale,
                     representantLegal: { ...personneMorale.representantLegal, fonction: e.target.value as any }
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10"
                 >
                   <option value="Gerant">Gérant</option>
                   <option value="President">Président</option>

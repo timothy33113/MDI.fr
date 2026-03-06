@@ -91,7 +91,7 @@ export function SituationProfessionnelleSection({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b-2 border-gray-300">
+            <tr className="border-b-2 border-gray-200">
               <th className="text-left py-3 px-4 font-semibold text-gray-700">Statut</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700">Employeur / Societe</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700">Poste / Fonction</th>
@@ -105,7 +105,7 @@ export function SituationProfessionnelleSection({
               return (
                 <React.Fragment key={situation.id}>
                   <tr
-                    className={`border-b border-gray-200 hover:bg-gray-50 ${isEditing ? 'bg-blue-50' : 'cursor-pointer'}`}
+                    className={`border-b border-gray-200 hover:bg-gray-50 ${isEditing ? 'bg-gray-50' : 'cursor-pointer'}`}
                     onClick={() => !isEditing && startEdit(situation.id)}
                   >
                     {/* Statut */}
@@ -114,7 +114,7 @@ export function SituationProfessionnelleSection({
                         <select
                           value={situation.statutProfessionnel}
                           onChange={(e) => update(situation.id, 'statutProfessionnel', e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                         >
                           {STATUTS_PRO.map(s => (
                             <option key={s.value} value={s.value}>{s.label}</option>
@@ -136,7 +136,7 @@ export function SituationProfessionnelleSection({
                             value={situation.employeur || ''}
                             onChange={(e) => update(situation.id, 'employeur', e.target.value)}
                             placeholder="Nom de l'employeur"
-                            className="w-full px-2 py-1 border border-gray-300 rounded"
+                            className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                           />
                         ) : (situation.statutProfessionnel === 'Independant' || situation.statutProfessionnel === 'Dirigeant') ? (
                           <div className="flex gap-2">
@@ -144,7 +144,7 @@ export function SituationProfessionnelleSection({
                               value={situation.societeId || ''}
                               onChange={(e) => update(situation.id, 'societeId', e.target.value)}
                               onClick={(e) => e.stopPropagation()}
-                              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                              className="flex-1 px-2 py-1 border border-gray-200 rounded-xl text-sm"
                             >
                               <option value="">Selectionnez une societe</option>
                               {societes.map(soc => (
@@ -156,7 +156,7 @@ export function SituationProfessionnelleSection({
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setShowSocieteModal(true) }}
-                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                              className="px-2 py-1 text-xs bg-gray-900 text-white rounded-xl hover:bg-gray-800"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
@@ -187,7 +187,7 @@ export function SituationProfessionnelleSection({
                             situation.statutProfessionnel === 'Dirigeant' ? "Ex: Gerant" :
                             situation.statutProfessionnel === 'Independant' ? "Ex: Consultant" : ""
                           }
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-200 rounded-xl"
                         />
                       ) : (
                         <span className="text-gray-900">{situation.emploi || '-'}</span>
@@ -254,7 +254,7 @@ export function SituationProfessionnelleSection({
 
                   {/* Ligne d'edition etendue */}
                   {isEditing && (
-                    <tr className="bg-blue-50 border-b border-blue-200">
+                    <tr className="bg-gray-50 border-b border-gray-200">
                       <td colSpan={5} className="py-4 px-4">
                         <div className="space-y-3">
                           {situation.statutProfessionnel === 'Salarie' && (
@@ -264,7 +264,7 @@ export function SituationProfessionnelleSection({
                                 <select
                                   value={situation.typeContrat || 'CDI'}
                                   onChange={(e) => update(situation.id, 'typeContrat', e.target.value)}
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
                                 >
                                   {TYPES_CONTRAT.map(t => (
                                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -281,7 +281,7 @@ export function SituationProfessionnelleSection({
                                 type="date"
                                 value={situation.dateDebut}
                                 onChange={(e) => update(situation.id, 'dateDebut', e.target.value)}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
                               />
                             </div>
                             {!situation.enCours && (
@@ -291,7 +291,7 @@ export function SituationProfessionnelleSection({
                                   type="date"
                                   value={situation.dateFin || ''}
                                   onChange={(e) => update(situation.id, 'dateFin', e.target.value)}
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  className="w-full px-2 py-1 border border-gray-200 rounded-xl text-sm"
                                 />
                               </div>
                             )}
@@ -310,7 +310,7 @@ export function SituationProfessionnelleSection({
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); add() }}
-        className="w-full py-3 px-6 bg-blue-100 hover:bg-blue-200 text-blue-700 border-2 border-blue-300 rounded-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2 mt-6"
+        className="w-full py-3 px-6 bg-gray-900 hover:bg-gray-800 text-white border-2 border-gray-900 rounded-xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2 mt-6"
       >
         <Plus className="h-5 w-5" />
         Ajouter une situation

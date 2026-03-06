@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useProject } from '@/hooks/useProject'
-import TabNavigation from '@/components/ui/TabNavigation'
 import ProjectForm from '@/components/forms/ProjectForm'
 import AssocieForm from '@/components/forms/AssocieForm'
 import FinancementForm from '@/components/forms/FinancementForm'
@@ -11,9 +10,7 @@ import TravauxForm from '@/components/forms/TravauxForm'
 import RecapitulatifForm from '@/components/forms/RecapitulatifForm'
 import PDFGenerator from '@/services/pdfGenerator'
 import { pdfService } from '@/services/pdfService'
-import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
-import { ArrowLeft, Plus, Users, Building2, Euro, FileText, Save, Percent, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, Users, Building2, Euro, FileText, Save, Percent, Download, Loader2, Pencil, Trash2, Check, AlertTriangle, Home, Hammer, X } from 'lucide-react'
 import { DossierSCI, Associe, PlanFinancement, BienImmobilier, TravauxDetail } from '@/types'
 
 const ProjectEdit: React.FC = () => {
@@ -47,12 +44,12 @@ const ProjectEdit: React.FC = () => {
   }, [id, isNewProject, getProject])
 
   const tabs = [
-    { key: 'project', label: 'Informations SCI', icon: '🏢' },
-    { key: 'associes', label: 'Associés', icon: '👥' },
-    { key: 'financement', label: 'Financement', icon: '💰' },
-    { key: 'bien', label: 'Bien immobilier', icon: '🏠' },
-    { key: 'travaux', label: 'Travaux', icon: '🔨' },
-    { key: 'pdf', label: 'Génération PDF', icon: '📄' },
+    { key: 'project', label: 'Société', icon: Building2 },
+    { key: 'associes', label: 'Associés', icon: Users },
+    { key: 'financement', label: 'Financement', icon: Euro },
+    { key: 'bien', label: 'Bien immobilier', icon: Home },
+    { key: 'travaux', label: 'Travaux', icon: Hammer },
+    { key: 'pdf', label: 'Dossier PDF', icon: FileText },
   ]
 
   const handleProjectSave = (data: any) => {
@@ -236,76 +233,84 @@ const ProjectEdit: React.FC = () => {
   const partsDisponibles = 100 - associes.reduce((sum, a) => sum + a.pourcentageParts, 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F7F7F7]">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/')}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Retour
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/projets')}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
                 {isNewProject ? 'Nouveau dossier' : project.nomSCI || 'Modifier le dossier'}
               </h1>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              {/* Bouton Generer PDF - visible uniquement pour les projets existants */}
-              {!isNewProject && (
-                <Button
-                  onClick={handleGeneratePDFFromAPI}
-                  disabled={pdfLoading}
-                  variant="secondary"
-                  className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                >
-                  {pdfLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  {pdfLoading ? 'Generation...' : 'Generer PDF'}
-                </Button>
-              )}
-
-              <Button
-                onClick={handleSaveProject}
-                disabled={loading}
-                variant="secondary"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Sauvegarde...' : 'Sauvegarder'}
-              </Button>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {isNewProject ? 'Créez un nouveau dossier bancaire' : 'Modifiez les informations du dossier'}
+              </p>
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* Navigation par onglets */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <TabNavigation
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+          <div className="flex items-center gap-2">
+            {!isNewProject && (
+              <button
+                onClick={handleGeneratePDFFromAPI}
+                disabled={pdfLoading}
+                className="px-4 py-2 bg-gradient-to-r from-coral-200 via-honey-200 to-honey-100 hover:from-coral-300 hover:via-honey-300 hover:to-honey-200 text-gray-900 rounded-xl text-sm font-medium transition-all inline-flex items-center gap-2 disabled:opacity-50"
+              >
+                {pdfLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {pdfLoading ? 'Génération...' : 'Générer PDF'}
+              </button>
+            )}
+
+            <button
+              onClick={handleSaveProject}
+              disabled={loading}
+              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {loading ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          </div>
         </div>
+
+        {/* Tab navigation with Vectra style */}
+        <nav className="flex items-center gap-1 mt-6">
+          {tabs.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                activeTab === key
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Message d'erreur PDF */}
       {pdfError && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between">
             <span className="text-red-700 text-sm">{pdfError}</span>
             <button
               onClick={() => setPdfError(null)}
-              className="text-red-500 hover:text-red-700"
+              className="p-1 text-red-400 hover:text-red-600 rounded-lg transition-colors"
             >
-              x
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -327,25 +332,29 @@ const ProjectEdit: React.FC = () => {
               {/* En-tête des associés */}
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">
                     Associés ({associes.length}/5)
                   </h2>
-                  <p className="text-gray-600">
-                    Total des parts: {associes.reduce((sum, a) => sum + a.pourcentageParts, 0)}% 
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Total des parts : {associes.reduce((sum, a) => sum + a.pourcentageParts, 0)}%
                     {associes.reduce((sum, a) => sum + a.pourcentageParts, 0) === 100 && (
-                      <span className="text-green-600 ml-2">✅</span>
+                      <span className="inline-flex items-center gap-1 ml-2 text-emerald-600">
+                        <Check className="h-3.5 w-3.5" />
+                        Complet
+                      </span>
                     )}
                   </p>
                 </div>
-                
+
                 {associes.length < 5 && (
-                  <Button
+                  <button
                     onClick={() => setShowAssocieForm(true)}
                     disabled={partsDisponibles <= 0}
+                    className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4" />
                     Ajouter un associé
-                  </Button>
+                  </button>
                 )}
               </div>
 
@@ -364,77 +373,86 @@ const ProjectEdit: React.FC = () => {
 
               {/* Liste des associés */}
               {associes.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {associes.map((associe) => (
-                    <Card key={associe.id} className="relative">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center">
-                          {associe.type === 'PERSONNE_PHYSIQUE' ? (
-                            <Users className="h-5 w-5 text-blue-500 mr-2" />
-                          ) : (
-                            <Building2 className="h-5 w-5 text-green-500 mr-2" />
-                          )}
-                          <span className="text-sm font-medium text-gray-500">
-                            {associe.type === 'PERSONNE_PHYSIQUE' ? 'Personne physique' : 'Personne morale'}
+                    <div key={associe.id} className="relative bg-white rounded-2xl border border-gray-200/60 p-5 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded-lg ${
+                            associe.type === 'PERSONNE_PHYSIQUE'
+                              ? 'bg-coral-50 text-coral-500'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {associe.type === 'PERSONNE_PHYSIQUE' ? (
+                              <Users className="h-4 w-4" />
+                            ) : (
+                              <Building2 className="h-4 w-4" />
+                            )}
+                          </div>
+                          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                            {associe.type === 'PERSONNE_PHYSIQUE' ? 'Physique' : 'Morale'}
                           </span>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleAssocieEdit(associe)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                           >
-                            ✏️
+                            <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleAssocieDelete(associe.id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           >
-                            🗑️
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
 
-                      <h3 className="font-semibold text-gray-900 mb-2">
+                      <h3 className="font-semibold text-gray-900 mb-3">
                         {associe.nom}
                       </h3>
 
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Percent className="h-4 w-4 mr-2 text-gray-400" />
+                      <div className="space-y-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2">
+                          <Percent className="h-3.5 w-3.5 text-gray-300" />
                           <span>{associe.pourcentageParts}% des parts</span>
                         </div>
-                        
-                        <div className="flex items-center">
-                          <Euro className="h-4 w-4 mr-2 text-gray-400" />
+
+                        <div className="flex items-center gap-2">
+                          <Euro className="h-3.5 w-3.5 text-gray-300" />
                           <span>
-                            {associe.type === 'PERSONNE_PHYSIQUE' 
+                            {associe.type === 'PERSONNE_PHYSIQUE'
                               ? `${associe.personnePhysique?.salaire || 0}€/mois`
                               : `${associe.personneMorale?.chiffreAffaires || 0}€/an`
                             }
                           </span>
                         </div>
 
-                        <div className="flex items-center">
-                          <FileText className="h-4 w-4 mr-2 text-gray-400" />
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-gray-300" />
                           <span className="truncate">{associe.email}</span>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   ))}
                 </div>
               )}
 
               {/* Contraintes */}
-              <Card className="bg-yellow-50 border-yellow-200">
-                <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                  ⚠️ Contraintes
-                </h3>
-                <ul className="text-sm text-yellow-800 space-y-1">
+              <div className="bg-gray-50 rounded-2xl border border-gray-200/60 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-gray-400" />
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    Contraintes
+                  </h3>
+                </div>
+                <ul className="text-sm text-gray-500 space-y-1 ml-6">
                   <li>• Minimum 1 associé, maximum 5</li>
                   <li>• Total des parts doit être exactement 100%</li>
                   <li>• Au moins 1 personne physique dans la SCI</li>
                 </ul>
-              </Card>
+              </div>
             </div>
           )}
 

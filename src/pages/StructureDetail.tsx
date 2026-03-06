@@ -73,7 +73,7 @@ const StructureDetail: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement...</p>
         </div>
       </div>
@@ -129,7 +129,7 @@ const StructureDetail: React.FC = () => {
             </button>
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <div className={`p-3 ${isPersonnePhysique ? 'bg-blue-100' : 'bg-green-100'} rounded-lg`}>
+                <div className={`p-3 ${isPersonnePhysique ? 'bg-blue-100' : 'bg-green-100'} rounded-xl`}>
                   {isPersonnePhysique ? (
                     <Users className={`h-6 w-6 ${isPersonnePhysique ? 'text-blue-600' : 'text-green-600'}`} />
                   ) : (
@@ -238,7 +238,7 @@ const StructureDetail: React.FC = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
+                    ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -428,7 +428,7 @@ const StructureDetail: React.FC = () => {
                 {isPersonnePhysique && structure.personnePhysique ? (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="p-4 bg-green-50 rounded-xl border border-green-200">
                         <p className="text-sm text-green-700">Salaire mensuel net</p>
                         <p className="font-bold text-2xl text-green-900">
                           {structure.personnePhysique.salaireMensuelNet
@@ -436,7 +436,7 @@ const StructureDetail: React.FC = () => {
                             : 'Non renseigné'}
                         </p>
                       </div>
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                         <p className="text-sm text-blue-700">Autres revenus mensuels</p>
                         <p className="font-bold text-2xl text-blue-900">
                           {structure.personnePhysique.autresRevenus
@@ -444,7 +444,7 @@ const StructureDetail: React.FC = () => {
                             : formatCurrency(0)}
                         </p>
                       </div>
-                      <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
                         <p className="text-sm text-indigo-700">Total revenus mensuels</p>
                         <p className="font-bold text-2xl text-indigo-900">
                           {formatCurrency(
@@ -454,7 +454,7 @@ const StructureDetail: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="p-4 bg-gray-50 rounded-xl">
                       <p className="text-sm text-gray-600 mb-2">Revenus annuels estimés</p>
                       <p className="font-bold text-3xl text-gray-900">
                         {formatCurrency(
@@ -487,7 +487,7 @@ const StructureDetail: React.FC = () => {
                 {isPersonnePhysique && structure.personnePhysique ? (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
                         <p className="text-sm text-orange-700">Charges mensuelles</p>
                         <p className="font-bold text-2xl text-orange-900">
                           {structure.personnePhysique.chargesMensuelles
@@ -495,7 +495,7 @@ const StructureDetail: React.FC = () => {
                             : formatCurrency(0)}
                         </p>
                       </div>
-                      <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="p-4 bg-red-50 rounded-xl border border-red-200">
                         <p className="text-sm text-red-700">Crédits en cours (mensuel)</p>
                         <p className="font-bold text-2xl text-red-900">
                           {structure.personnePhysique.creditEnCours
@@ -503,7 +503,7 @@ const StructureDetail: React.FC = () => {
                             : formatCurrency(0)}
                         </p>
                       </div>
-                      <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
                         <p className="text-sm text-amber-700">Total charges mensuelles</p>
                         <p className="font-bold text-2xl text-amber-900">
                           {formatCurrency(
@@ -515,7 +515,7 @@ const StructureDetail: React.FC = () => {
                     </div>
 
                     {/* Calcul du reste à vivre */}
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="p-4 bg-gray-50 rounded-xl">
                       <p className="text-sm text-gray-600 mb-2">Reste à vivre mensuel</p>
                       <p className={`font-bold text-3xl ${
                         ((structure.personnePhysique.salaireMensuelNet || 0) +
@@ -539,7 +539,7 @@ const StructureDetail: React.FC = () => {
 
                     {/* Épargne disponible */}
                     {structure.personnePhysique.epargneDisponible && (
-                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
                         <p className="text-sm text-purple-700">Épargne disponible</p>
                         <p className="font-bold text-2xl text-purple-900">
                           {formatCurrency(structure.personnePhysique.epargneDisponible)}
@@ -572,7 +572,7 @@ const StructureDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Détenu par</h3>
                   <div className="space-y-3">
                     {patrimoine.detenuePar.map((detention, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                         <div className="flex items-center gap-3">
                           <Users className="h-5 w-5 text-gray-400" />
                           <div>
@@ -597,7 +597,7 @@ const StructureDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Sociétés détenues</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {patrimoine.societes.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div key={idx} className="p-4 bg-green-50 border border-green-200 rounded-xl">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-semibold text-gray-900">{item.societe.nom}</p>
@@ -621,7 +621,7 @@ const StructureDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Biens immobiliers</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {patrimoine.biens.map((item, idx) => (
-                      <div key={idx} className={`p-4 rounded-lg border ${
+                      <div key={idx} className={`p-4 rounded-xl border ${
                         item.bien.type_patrimoine === 'Personnel'
                           ? 'bg-blue-50 border-blue-200'
                           : 'bg-green-50 border-green-200'
@@ -655,7 +655,7 @@ const StructureDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Crédits et emprunts</h3>
                   <div className="space-y-3">
                     {patrimoine.credits.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div key={idx} className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-semibold text-gray-900">{item.credit.nom}</p>
@@ -710,7 +710,7 @@ const StructureDetail: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {patrimoine.comptes.map((compte: any, idx: number) => (
-                      <div key={idx} className={`p-4 rounded-lg border ${
+                      <div key={idx} className={`p-4 rounded-xl border ${
                         compte.typePatrimoine === 'Personnel'
                           ? 'bg-purple-50 border-purple-200'
                           : 'bg-indigo-50 border-indigo-200'

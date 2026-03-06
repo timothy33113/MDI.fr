@@ -36,7 +36,7 @@ const CustomNode = ({ data }: any) => {
   const Icon = data.icon
   const bgColor = data.bgColor || 'bg-gray-100'
   const iconColor = data.iconColor || 'text-gray-600'
-  const borderColor = data.borderColor || 'border-gray-300'
+  const borderColor = data.borderColor || 'border-gray-200'
   const textColor = data.textColor || 'text-gray-900'
   const subtitleColor = data.subtitleColor || 'text-gray-600'
 
@@ -48,7 +48,7 @@ const CustomNode = ({ data }: any) => {
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
 
       <div
-        className={`px-4 py-3 rounded-lg border-2 ${borderColor} ${bgColor} shadow-md min-w-[180px] max-w-[280px] cursor-grab active:cursor-grabbing`}
+        className={`px-4 py-3 rounded-xl border-2 ${borderColor} ${bgColor} shadow-md min-w-[180px] max-w-[280px] cursor-grab active:cursor-grabbing`}
         style={{ pointerEvents: 'all' }}
       >
         <div className="flex items-center gap-2 mb-1">
@@ -62,14 +62,14 @@ const CustomNode = ({ data }: any) => {
           <div className={`text-sm font-bold ${textColor} mt-1`}>{data.value}</div>
         )}
         {data.percentage !== undefined && (
-          <div className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+          <div className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">
             {data.percentage}%
           </div>
         )}
 
         {/* Liste des associes */}
         {data.associes && data.associes.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-300">
+          <div className="mt-2 pt-2 border-t border-gray-200">
             <div className="text-xs font-semibold text-gray-700 mb-1">Associes :</div>
             <div className="space-y-1">
               {data.associes.map((associe: any, index: number) => (
@@ -86,7 +86,7 @@ const CustomNode = ({ data }: any) => {
 
         {/* Liste des comptes bancaires */}
         {data.comptes && data.comptes.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-300">
+          <div className="mt-2 pt-2 border-t border-gray-200">
             <div className="text-xs font-semibold text-gray-700 mb-1">Comptes :</div>
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {data.comptes.map((compte: any, index: number) => (
@@ -116,7 +116,7 @@ const CustomNode = ({ data }: any) => {
 
         {/* Liste des biens immobiliers */}
         {data.biens && data.biens.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-300">
+          <div className="mt-2 pt-2 border-t border-gray-200">
             <div className="text-xs font-semibold text-gray-700 mb-1">Biens immobiliers :</div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {data.biens.map((bien: any, index: number) => (
@@ -130,7 +130,7 @@ const CustomNode = ({ data }: any) => {
                     </span>
                   </div>
                   {bien.credits && bien.credits.length > 0 && (
-                    <div className="mt-1.5 pt-1.5 border-t border-gray-300">
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-200">
                       <div className="text-[10px] font-semibold text-orange-700 mb-1">Credits :</div>
                       {bien.credits.map((credit: any, creditIndex: number) => (
                         <div key={creditIndex} className="flex justify-between items-center text-[10px] mb-0.5">
@@ -178,7 +178,7 @@ const CustomNode = ({ data }: any) => {
 
         {/* Liste des revenus et charges */}
         {(data.revenus || data.charges) && (
-          <div className="mt-2 pt-2 border-t border-gray-300">
+          <div className="mt-2 pt-2 border-t border-gray-200">
             {data.revenus && data.revenus.length > 0 && (
               <div className="mb-2">
                 <div className="text-xs font-semibold text-green-700 mb-1">Revenus :</div>
@@ -230,7 +230,7 @@ const CustomNode = ({ data }: any) => {
                 {data.resteAVivre !== undefined && (
                   <div className="flex justify-between items-center pt-1 border-t border-gray-500">
                     <span className="text-xs font-bold text-gray-900">Reste a vivre :</span>
-                    <span className={`text-sm font-bold ${data.resteAVivre >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                    <span className={`text-sm font-bold ${data.resteAVivre >= 0 ? 'text-gray-900' : 'text-red-700'}`}>
                       {data.resteAVivre.toLocaleString('fr-FR')} EUR
                     </span>
                   </div>
@@ -279,11 +279,11 @@ export function OrganigrammeSection({
         label: `${identite.prenom} ${identite.nom}` || 'Personne',
         subtitle: 'Personne physique',
         icon: Wallet,
-        bgColor: 'bg-blue-600',
+        bgColor: 'bg-gray-900',
         iconColor: 'text-white',
-        borderColor: 'border-blue-700',
+        borderColor: 'border-gray-900',
         textColor: 'text-white',
-        subtitleColor: 'text-blue-100',
+        subtitleColor: 'text-gray-300',
       },
     })
 
@@ -376,9 +376,9 @@ export function OrganigrammeSection({
           label: societe.nom,
           subtitle: societe.type,
           icon: Building2,
-          bgColor: 'bg-blue-100',
-          iconColor: 'text-blue-600',
-          borderColor: 'border-blue-400',
+          bgColor: 'bg-gray-100',
+          iconColor: 'text-gray-900',
+          borderColor: 'border-gray-400',
           percentage: pourcentage,
           associes: associesList,
         },
@@ -389,9 +389,9 @@ export function OrganigrammeSection({
         source: 'person-center',
         target: nodeId,
         animated: true,
-        style: { stroke: '#3b82f6', strokeWidth: 4 },
+        style: { stroke: '#111827', strokeWidth: 4 },
         type: 'default',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#111827' },
       })
 
       // Liens des co-associes
@@ -569,12 +569,12 @@ export function OrganigrammeSection({
       description="Visualisation graphique de votre patrimoine et de vos participations"
     >
       {nodes.length <= 1 && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
           Astuce : Ajoutez des societes, biens, credits ou comptes bancaires dans les autres sections pour voir l'organigramme se construire automatiquement !
         </div>
       )}
 
-      <div style={{ width: '100%', height: '600px' }} className="border rounded-lg bg-gray-100">
+      <div style={{ width: '100%', height: '600px' }} className="border rounded-xl bg-gray-100">
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -595,8 +595,8 @@ export function OrganigrammeSection({
             <Controls />
             <MiniMap
               nodeColor={(node) => {
-                if (node.id === 'person-center') return '#2563eb'
-                if (node.id.startsWith('societe-')) return '#3b82f6'
+                if (node.id === 'person-center') return '#111827'
+                if (node.id.startsWith('societe-')) return '#6b7280'
                 if (node.id === 'patrimoine') return '#10b981'
                 if (node.id === 'economies') return '#8b5cf6'
                 if (node.id === 'revenus-charges') return '#f59e0b'
