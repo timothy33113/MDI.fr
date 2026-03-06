@@ -5,7 +5,7 @@ import { searchEntrepriseByDirigeant, searchEntrepriseBySirenOrSiret, searchFili
 interface RechercheEntrepriseParDirigeantProps {
   nom: string
   prenoms: string
-  onAddEntreprises?: (entreprises: EntrepriseApiResult[], searchedNom?: string, searchedPrenoms?: string) => void
+  onAddEntreprises?: (entreprises: EntrepriseApiResult[], searchedNom?: string, searchedPrenoms?: string) => Promise<void> | void
 }
 
 // Résultat enrichi avec info de provenance
@@ -26,6 +26,7 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
   const [totalResults, setTotalResults] = useState(0)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
 
   const handleSearch = async () => {
     if (!nom.trim()) {
@@ -157,16 +158,23 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
     })
   }
 
-  const handleAddSelectedEntreprises = () => {
+  const handleAddSelectedEntreprises = async () => {
     const entreprisesToAdd = results
       .filter(r => selectedEntreprises.has(r.entreprise.siren))
       .map(r => r.entreprise)
 
     if (entreprisesToAdd.length > 0 && onAddEntreprises) {
-      onAddEntreprises(entreprisesToAdd, nom, prenoms)
-      setSelectedEntreprises(new Set())
-      setResults([])
-      setHasSearched(false)
+      setIsCreating(true)
+      try {
+        await onAddEntreprises(entreprisesToAdd, nom, prenoms)
+        setSelectedEntreprises(new Set())
+        setResults([])
+        setHasSearched(false)
+      } catch (err) {
+        console.error('Erreur création structures:', err)
+      } finally {
+        setIsCreating(false)
+      }
     }
   }
 
@@ -206,8 +214,9 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
       <button
         key={entreprise.siren || index}
         type="button"
-        onClick={() => toggleEntrepriseSelection(entreprise.siren)}
-        className={`w-full text-left bg-white rounded-xl border transition-all cursor-pointer ${
+        onClick={() => !isCreating && toggleEntrepriseSelection(entreprise.siren)}
+        disabled={isCreating}
+        className={`w-full text-left bg-white rounded-xl border transition-all ${isCreating ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${
           isSelected
             ? 'border-gray-300 shadow-sm'
             : 'border-gray-200 hover:border-gray-300'
@@ -353,10 +362,20 @@ const RechercheEntrepriseParDirigeant: React.FC<RechercheEntrepriseParDirigeantP
             <button
               type="button"
               onClick={handleAddSelectedEntreprises}
-              className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+              disabled={isCreating}
+              className="w-full py-3 bg-gray-900 hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              Ajouter {selectedEntreprises.size} entreprise{selectedEntreprises.size > 1 ? 's' : ''} comme associé{selectedEntreprises.size > 1 ? 's' : ''}
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Création des structures en cours...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Ajouter {selectedEntreprises.size} entreprise{selectedEntreprises.size > 1 ? 's' : ''} comme associé{selectedEntreprises.size > 1 ? 's' : ''}
+                </>
+              )}
             </button>
           )}
         </div>

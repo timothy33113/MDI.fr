@@ -601,6 +601,7 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
   const handleAddEntreprisesAsAssocies = async (entreprises: EntrepriseApiResult[], searchedNom?: string, searchedPrenoms?: string) => {
     console.log(`🔍 Ajout de ${entreprises.length} entreprise(s) comme associé(s)`)
     console.log(`👤 Dirigeant recherché: ${searchedPrenoms} ${searchedNom}`)
+    try {
 
     const nouveauxAssocies: Associe[] = []
     const createdStructuresMap = new Map<string, string>()
@@ -958,8 +959,15 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
     console.log(`✅ ${createdStructuresMap.size} structure(s) de dirigeants créées`)
     console.log(`✅ ${relationsDetentionToCreate.length} relation(s) de détention créées`)
 
+    toast.success(`${createdStructuresMap.size + nouveauxAssocies.length} structure(s) créée(s), ${nouveauxAssocies.length + associesDirigeants.length} associé(s) ajouté(s)`)
+
     // Fermer la modal
     setShowAssocieModal(false)
+    } catch (error) {
+      console.error('Erreur lors de la création des structures:', error)
+      toast.error('Erreur lors de la création des structures. Veuillez réessayer.')
+      throw error
+    }
   }
 
   // Gestion des associés
