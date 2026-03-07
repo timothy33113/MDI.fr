@@ -564,6 +564,24 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         setTravaux(importedWorks)
       }
 
+      // DPE / GES / Taxe foncière depuis les attributs Leboncoin
+      if (data.energyRate) {
+        const dpeValue = String(data.energyRate).toUpperCase().trim()
+        if (['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(dpeValue)) {
+          setDpe(dpeValue)
+        }
+      }
+      if (data.ges) {
+        const gesValue = String(data.ges).toUpperCase().trim()
+        if (['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(gesValue)) {
+          setGes(gesValue)
+        }
+      }
+      if (data.taxeFonciere) {
+        const taxeValue = Number(data.taxeFonciere)
+        if (taxeValue > 0) setTaxeFonciere(taxeValue)
+      }
+
       setIsLeboncoinExpanded(false)
       setLeboncoinUrl('')
 
@@ -881,20 +899,6 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                 }}
                 placeholder="Rechercher une adresse..."
               />
-
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <Input
-                  label="Code postal"
-                  value={codePostal}
-                  onChange={(e) => setCodePostal(e.target.value)}
-                />
-
-                <Input
-                  label="Ville"
-                  value={ville}
-                  onChange={(e) => setVille(e.target.value)}
-                />
-              </div>
 
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div>

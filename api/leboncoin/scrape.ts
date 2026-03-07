@@ -102,7 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bedrooms: extractAttribute(adData, ['bedrooms', 'nb_bedrooms']),
         propertyType: extractAttribute(adData, ['real_estate_type', 'property_type', 'type']),
         energyRate: extractAttribute(adData, ['energy_rate', 'dpe', 'energy_class']),
-        ges: extractAttribute(adData, ['ges', 'ges_class'])
+        ges: extractAttribute(adData, ['ges', 'ges_class']),
+        taxeFonciere: extractAttribute(adData, ['taxe_fonciere', 'property_tax', 'foncier'])
       },
       images: extractImages(adData),
       url: url
@@ -143,7 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bedrooms: formattedData.attributes.bedrooms,
         propertyType: formattedData.attributes.propertyType,
         energyRate: formattedData.attributes.energyRate,
-        ges: formattedData.attributes.ges
+        ges: formattedData.attributes.ges,
+        taxeFonciere: formattedData.attributes.taxeFonciere
       }
     });
 
