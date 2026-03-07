@@ -797,16 +797,16 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
         {activeTab === 'general' && (
           <div className="space-y-4">
             {/* Import Leboncoin collapsible */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+            <div className="border border-honey-200 rounded-xl overflow-hidden bg-white shadow-sm">
               {/* Header collapsible */}
               <button
                 type="button"
                 onClick={() => setIsLeboncoinExpanded(!isLeboncoinExpanded)}
-                className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-all duration-200"
+                className="w-full px-4 py-3 bg-gradient-to-r from-coral-50 via-honey-50 to-honey-100 hover:from-coral-100 hover:via-honey-100 hover:to-honey-150 flex items-center justify-between transition-all duration-200"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 p-2 bg-white rounded-xl shadow-sm">
-                    <LinkIcon className="h-5 w-5 text-gray-900" />
+                  <div className="flex-shrink-0 p-1.5 bg-white/80 rounded-lg shadow-sm">
+                    <LinkIcon className="h-4 w-4 text-coral-500" />
                   </div>
                   <div className="text-left">
                     <p className="font-semibold text-gray-900 text-sm">Importer depuis Leboncoin</p>
@@ -814,7 +814,7 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
                   </div>
                 </div>
                 <ChevronDown
-                  className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+                  className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
                     isLeboncoinExpanded ? 'rotate-180' : ''
                   }`}
                 />
