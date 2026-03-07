@@ -753,7 +753,11 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
   }
 
   const updateRevenu = (id: string, field: string, value: any) => {
-    setRevenus(revenus.map(r => r.id === id ? { ...r, [field]: value } : r))
+    setRevenus(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
+  }
+
+  const updateRevenuMulti = (id: string, updates: Record<string, any>) => {
+    setRevenus(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
   }
 
   const totalRevenus = revenus.reduce((sum, r) => sum + r.montantMensuel, 0)
@@ -1941,7 +1945,7 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-sm font-semibold text-emerald-600">{revenu.montantMensuel.toLocaleString('fr-FR')} €</span>
+                      <span className="text-sm font-semibold text-emerald-600">{revenu.montantMensuel.toLocaleString('fr-FR')} €/mois</span>
                       {isEditing ? (
                         <div className="flex gap-1.5">
                           <button type="button" onClick={(e) => { e.stopPropagation(); validateRevenu(revenu.id); }} className="p-1.5 text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
@@ -1993,13 +1997,12 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
                         <div>
                           <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Périodicité</label>
                           <select value={revenu.periodicite || 'mensuel'} onChange={(e) => {
-                            const newPeriodicite = e.target.value
-                            updateRevenu(revenu.id, 'periodicite', newPeriodicite)
+                            const newPeriodicite = e.target.value as 'mensuel' | 'annuel'
                             const montantSaisi = revenu.montantSaisi ?? revenu.montantMensuel
                             if (newPeriodicite === 'annuel') {
-                              updateRevenu(revenu.id, 'montantMensuel', Math.round((montantSaisi / 12) * 100) / 100)
+                              updateRevenuMulti(revenu.id, { periodicite: newPeriodicite, montantMensuel: Math.round((montantSaisi / 12) * 100) / 100 })
                             } else {
-                              updateRevenu(revenu.id, 'montantMensuel', montantSaisi)
+                              updateRevenuMulti(revenu.id, { periodicite: newPeriodicite, montantMensuel: montantSaisi })
                             }
                           }} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300" onClick={(e) => e.stopPropagation()}>
                             <option value="mensuel">Mensuel</option>
@@ -2012,11 +2015,10 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
                           </label>
                           <input type="number" value={(revenu.montantSaisi ?? revenu.montantMensuel) || ''} onChange={(e) => {
                             const value = Number(e.target.value)
-                            updateRevenu(revenu.id, 'montantSaisi', value)
                             if ((revenu.periodicite || 'mensuel') === 'annuel') {
-                              updateRevenu(revenu.id, 'montantMensuel', Math.round((value / 12) * 100) / 100)
+                              updateRevenuMulti(revenu.id, { montantSaisi: value, montantMensuel: Math.round((value / 12) * 100) / 100 })
                             } else {
-                              updateRevenu(revenu.id, 'montantMensuel', value)
+                              updateRevenuMulti(revenu.id, { montantSaisi: value, montantMensuel: value })
                             }
                           }} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300" onClick={(e) => e.stopPropagation()} />
                           {revenu.periodicite === 'annuel' && (revenu.montantSaisi ?? revenu.montantMensuel) > 0 && (
@@ -2038,7 +2040,7 @@ const AssocieFormV2: React.FC<AssocieFormV2Props> = ({ associeId, onSubmit, onCa
 
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">Total des revenus mensuels</span>
-            <span className="text-xl font-bold text-emerald-600">{totalRevenus.toLocaleString('fr-FR')} €</span>
+            <span className="text-xl font-bold text-emerald-600">{totalRevenus.toLocaleString('fr-FR')} €/mois</span>
           </div>
         </div>
       )}
