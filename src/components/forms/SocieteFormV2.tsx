@@ -1911,13 +1911,20 @@ const SocieteFormV2: React.FC<SocieteFormV2Props> = ({ societeId, onSubmit, onCa
                         </select>
                       </div>
 
-                      <Input
-                        label="Organisme"
-                        value={credit.organisme}
-                        onChange={(e) => updateCredit(credit.id, 'organisme', e.target.value)}
-                        placeholder="Banque / Organisme"
-                        disabled={!isEditing}
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Organisme</label>
+                        <select
+                          value={credit.organisme}
+                          onChange={(e) => updateCredit(credit.id, 'organisme', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+                          disabled={!isEditing}
+                        >
+                          <option value="">Sélectionnez un organisme</option>
+                          {['Banque Populaire', 'Banque Postale (La)', 'BNP Paribas', 'Boursorama', 'BPIfrance', 'Caisse d\'Épargne', 'CCF', 'CIC', 'Crédit Agricole', 'Crédit du Nord', 'Crédit Foncier', 'Crédit Mutuel', 'Fortuneo', 'HSBC', 'ING', 'LCL', 'La Banque Palatine', 'Milleis Banque', 'Monabanq', 'N26', 'Nickel', 'Orange Bank', 'Revolut', 'Société Générale', 'Autre'].map(b => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     {/* Si crédit immobilier, permettre de sélectionner un bien */}
