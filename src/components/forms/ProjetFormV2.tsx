@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { CreateProjetForm, Structure, Projet, AnalysesRentabilite, ChecklistDocument, BienImmobilier } from '@/types'
+import { CreateProjetForm, Structure, Projet, ChecklistDocument, BienImmobilier } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw, BarChart3 } from 'lucide-react'
+import { Plus, Trash2, FileText, Home, Users, Hammer, Euro, CheckCircle, Link as LinkIcon, TrendingUp, ChevronDown, Loader2, RefreshCw } from 'lucide-react'
 import api from '@/services/api'
 import SortablePhotoGrid from '@/components/ui/SortablePhotoGrid'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
@@ -190,29 +190,10 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   const [comparableUrl, setComparableUrl] = useState('')
   const [comparableLoading, setComparableLoading] = useState(false)
 
-  // Onglet 6: Analyse serveur
-  const [analysisData, setAnalysisData] = useState<AnalysesRentabilite | null>(null)
-  const [analysisLoading, setAnalysisLoading] = useState(false)
-
   // Onglet 7: Checklist documents
   const [checklistDocs, setChecklistDocs] = useState<ChecklistDocument[]>([])
   const [checklistLoading, setChecklistLoading] = useState(false)
   const [checklistGenerated, setChecklistGenerated] = useState(false)
-
-  // API: Calculer la rentabilité
-  const handleCalculateRentabilite = async () => {
-    if (!initialProjet?.id) return
-    setAnalysisLoading(true)
-    try {
-      const response = await api.post(`/projets/actions?id=${initialProjet.id}&action=analyser`)
-      setAnalysisData(response.data.data)
-    } catch (err: any) {
-      console.error('Erreur calcul rentabilité:', err)
-      alert('Erreur lors du calcul de rentabilité. Sauvegardez d\'abord le projet.')
-    } finally {
-      setAnalysisLoading(false)
-    }
-  }
 
   // API: Charger la checklist existante
   const handleLoadChecklist = async () => {
@@ -264,12 +245,6 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
   useEffect(() => {
     if (activeTab === 'documents' && initialProjet?.id && !checklistGenerated && checklistDocs.length === 0) {
       handleLoadChecklist()
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (activeTab === 'recapitulatif' && initialProjet?.id && !analysisData) {
-      handleCalculateRentabilite()
     }
   }, [activeTab])
 
@@ -1513,469 +1488,140 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
           </div>
         )}
 
-        {/* Onglet 6: Récapitulatif et Rentabilité */}
+        {/* Onglet 6: Récapitulatif */}
         {activeTab === 'recapitulatif' && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold mb-4">Récapitulatif du projet</h3>
-
-            {/* Calculs automatiques */}
             {(() => {
-              // Loyers (communs à tous les scénarios)
-              const loyersMensuelsTotal = elementsBien.reduce((sum, el) =>
-                sum + (el.loyerMensuel || 0), 0
-              )
+              const loyersMensuelsTotal = elementsBien.reduce((sum, el) => sum + (el.loyerMensuel || 0), 0)
               const loyersAnnuelsTotal = loyersMensuelsTotal * 12
-              const loyersActuels = elementsBien.filter(el => el.enLocation && el.loyerMensuel)
-              const loyersEstimatifs = elementsBien.filter(el => !el.enLocation && el.loyerMensuel)
               const loyerNetBancaire = loyersAnnuelsTotal * 0.7
               const loyerNetMensuelBancaire = loyerNetBancaire / 12
-
-              // Calculs par scénario
-              const calcScenario = (s: Scenario) => {
-                const coutTotal = s.prixAchat + s.fraisNotaire + (s.fraisAgence || 0) + s.montantTravaux
-                const montantCredit = Math.max(0, coutTotal - s.apportPersonnel)
-                const tauxMensuel = (s.tauxInteretEstime / 100) / 12
-                const nombreMois = s.dureeCredit * 12
-                const mensualiteCredit = montantCredit > 0 && tauxMensuel > 0
-                  ? montantCredit * (tauxMensuel * Math.pow(1 + tauxMensuel, nombreMois)) / (Math.pow(1 + tauxMensuel, nombreMois) - 1)
-                  : 0
-                const cashflowMensuel70 = loyerNetMensuelBancaire - mensualiteCredit
-                const cashflowMensuel100 = loyersMensuelsTotal - mensualiteCredit
-                const rentabiliteBrute = coutTotal > 0 ? (loyersAnnuelsTotal / coutTotal) * 100 : 0
-                const rentabiliteNette = coutTotal > 0 ? (loyerNetBancaire / coutTotal) * 100 : 0
-                return { coutTotal, montantCredit, mensualiteCredit, cashflowMensuel70, cashflowMensuel100, rentabiliteBrute, rentabiliteNette, tauxMensuel, nombreMois }
-              }
-
-              const scenarioCalcs = scenarios.map(s => ({ scenario: s, calc: calcScenario(s) }))
-              // Pour la vue détaillée (single scenario), on utilise le premier
-              const mainCalc = scenarioCalcs[0].calc
+              const totalTravaux = travaux.reduce((sum, t) => sum + (t.montant || 0), 0)
+              const coutTotal = financement.prixAchat + financement.fraisNotaire + (financement.fraisAgence || 0) + financement.montantTravaux
+              const montantCredit = Math.max(0, coutTotal - financement.apportPersonnel)
+              const tauxMensuel = (financement.tauxInteretEstime / 100) / 12
+              const nombreMois = financement.dureeCredit * 12
+              const mensualiteCredit = montantCredit > 0 && tauxMensuel > 0
+                ? montantCredit * (tauxMensuel * Math.pow(1 + tauxMensuel, nombreMois)) / (Math.pow(1 + tauxMensuel, nombreMois) - 1)
+                : 0
+              const cashflowMensuel = loyerNetMensuelBancaire - mensualiteCredit
+              const rentabiliteBrute = coutTotal > 0 ? (loyersAnnuelsTotal / coutTotal) * 100 : 0
 
               return (
                 <>
-                  {/* Tableau comparatif si plusieurs scénarios */}
-                  {scenarios.length > 1 && (
-                    <Card className="p-6 bg-white border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5" />
-                        Comparaison des hypothèses
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-gray-200">
-                              <th className="text-left py-2 pr-4 text-gray-500 font-medium"></th>
-                              {scenarioCalcs.map(({ scenario }) => (
-                                <th key={scenario.id} className="text-right py-2 px-3 font-semibold text-gray-900 min-w-[130px]">
-                                  {scenario.nom}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600">Prix d'achat</td>
-                              {scenarioCalcs.map(({ scenario }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-medium">{scenario.prixAchat.toLocaleString('fr-FR')} €</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600">Coût total</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-semibold">{calc.coutTotal.toLocaleString('fr-FR')} €</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600">Apport</td>
-                              {scenarioCalcs.map(({ scenario }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-medium text-green-600">{scenario.apportPersonnel.toLocaleString('fr-FR')} €</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600">Emprunt</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-semibold">{calc.montantCredit.toLocaleString('fr-FR')} €</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600">Durée / Taux</td>
-                              {scenarioCalcs.map(({ scenario }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-medium">{scenario.dureeCredit} ans / {scenario.tauxInteretEstime}%</td>
-                              ))}
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 pr-4 text-gray-600 font-medium">Mensualité</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className="py-2 px-3 text-right font-bold text-gray-900">{Math.round(calc.mensualiteCredit).toLocaleString('fr-FR')} €</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600 font-medium">Cash-flow 70%</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.cashflowMensuel70 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {calc.cashflowMensuel70 >= 0 ? '+' : ''}{Math.round(calc.cashflowMensuel70).toLocaleString('fr-FR')} €
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600 font-medium">Cash-flow 100%</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.cashflowMensuel100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {calc.cashflowMensuel100 >= 0 ? '+' : ''}{Math.round(calc.cashflowMensuel100).toLocaleString('fr-FR')} €
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600 font-medium">Rentabilité brute</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.rentabiliteBrute >= 5 ? 'text-green-600' : calc.rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
-                                  {calc.rentabiliteBrute.toFixed(2)}%
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <td className="py-2 pr-4 text-gray-600 font-medium">Rentabilité nette</td>
-                              {scenarioCalcs.map(({ scenario, calc }) => (
-                                <td key={scenario.id} className={`py-2 px-3 text-right font-bold ${calc.rentabiliteNette >= 3.5 ? 'text-green-600' : calc.rentabiliteNette >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
-                                  {calc.rentabiliteNette.toFixed(2)}%
-                                </td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Section 1: Coûts du projet (scénario principal) */}
-                  <Card className="p-6 bg-gray-50 border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <Euro className="h-5 w-5" />
-                      Coûts du projet{scenarios.length > 1 ? ` (${scenarios[0].nom})` : ''}
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Prix d'achat</span>
-                        <span className="font-semibold">{financement.prixAchat.toLocaleString('fr-FR')} €</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Frais de notaire</span>
-                        <span className="font-semibold">{financement.fraisNotaire.toLocaleString('fr-FR')} €</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Montant travaux</span>
-                        <span className="font-semibold">{financement.montantTravaux.toLocaleString('fr-FR')} €</span>
-                      </div>
-                      <div className="border-t border-gray-200 pt-3 mt-3"></div>
-                      <div className="flex justify-between text-lg">
-                        <span className="font-bold text-gray-900">Coût total du projet</span>
-                        <span className="font-bold text-gray-900">{mainCalc.coutTotal.toLocaleString('fr-FR')} €</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Apport personnel</span>
-                        <span className="font-semibold text-green-600">- {financement.apportPersonnel.toLocaleString('fr-FR')} €</span>
-                      </div>
-                      <div className="flex justify-between text-lg">
-                        <span className="font-bold text-gray-900">Montant à financer</span>
-                        <span className="font-bold text-gray-900">{mainCalc.montantCredit.toLocaleString('fr-FR')} €</span>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Section 2: Revenus locatifs */}
-                  <Card className="p-6 bg-green-50 border-green-200">
-                    <h4 className="font-semibold text-green-900 mb-4 flex items-center gap-2">
-                      <Home className="h-5 w-5" />
-                      Revenus locatifs potentiels
-                    </h4>
-                    <div className="space-y-3">
-                      {elementsBien.filter(el => el.loyerMensuel).length > 0 ? (
-                        <>
-                          {loyersActuels.length > 0 && (
-                            <>
-                              <p className="text-xs font-semibold text-green-800 mb-2">Lots actuellement loués</p>
-                              {loyersActuels.map((el, idx) => (
-                                <div key={idx} className="flex justify-between text-sm bg-white rounded px-2 py-1">
-                                  <span className="text-gray-700">{el.type} - {el.superficie}m²</span>
-                                  <span className="font-semibold text-green-700">{(el.loyerMensuel || 0).toLocaleString('fr-FR')} € / mois</span>
-                                </div>
-                              ))}
-                            </>
-                          )}
-                          {loyersEstimatifs.length > 0 && (
-                            <>
-                              <p className="text-xs font-semibold text-gray-800 mb-2 mt-3">Lots avec loyers estimatifs</p>
-                              {loyersEstimatifs.map((el, idx) => (
-                                <div key={idx} className="flex justify-between text-sm bg-gray-50 rounded px-2 py-1 border border-gray-200">
-                                  <span className="text-gray-700">{el.type} - {el.superficie}m²</span>
-                                  <span className="font-semibold text-gray-700">{(el.loyerMensuel || 0).toLocaleString('fr-FR')} € / mois <span className="text-xs">(estimatif)</span></span>
-                                </div>
-                              ))}
-                            </>
-                          )}
-                          <div className="border-t border-green-300 pt-3 mt-3"></div>
-                          <div className="flex justify-between text-lg">
-                            <span className="font-bold text-green-900">Total mensuel</span>
-                            <span className="font-bold text-green-900">{loyersMensuelsTotal.toLocaleString('fr-FR')} € / mois</span>
-                          </div>
-                          <div className="flex justify-between text-lg">
-                            <span className="font-bold text-green-900">Total annuel</span>
-                            <span className="font-bold text-green-900">{loyersAnnuelsTotal.toLocaleString('fr-FR')} € / an</span>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-gray-500 text-sm">Aucun lot avec loyer configuré</p>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Section 3: Financement et règle des 70% (scénario principal) */}
-                  {mainCalc.montantCredit > 0 && (
-                    <Card className="p-6 bg-orange-50 border-orange-200">
-                      <h4 className="font-semibold text-orange-900 mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5" />
-                        Analyse du financement{scenarios.length > 1 ? ` (${scenarios[0].nom})` : ''}
-                      </h4>
-                      <div className="space-y-3">
-                        <div className="bg-white rounded-xl p-3 border border-orange-200">
-                          <p className="text-xs text-gray-600 mb-2">Règle bancaire des 70%</p>
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Loyers bruts annuels</span>
-                            <span className="font-semibold">{loyersAnnuelsTotal.toLocaleString('fr-FR')} €</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Loyers nets (70%)</span>
-                            <span className="font-semibold text-orange-700">{loyerNetBancaire.toLocaleString('fr-FR')} €</span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span className="text-gray-700">Par mois</span>
-                            <span className="font-semibold text-orange-700">{loyerNetMensuelBancaire.toLocaleString('fr-FR')} € / mois</span>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-orange-300 pt-3"></div>
-
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">Durée du crédit</span>
-                          <span className="font-semibold">{financement.dureeCredit} ans</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">Taux d'intérêt estimé</span>
-                          <span className="font-semibold">{financement.tauxInteretEstime}%</span>
-                        </div>
-                        <div className="flex justify-between text-lg">
-                          <span className="font-bold text-orange-900">Mensualité crédit</span>
-                          <span className="font-bold text-orange-900">{Math.round(mainCalc.mensualiteCredit).toLocaleString('fr-FR')} € / mois</span>
-                        </div>
-
-                        <div className="border-t border-orange-300 pt-3"></div>
-
-                        <div className="space-y-2">
-                          <div className={`p-3 rounded-xl ${mainCalc.cashflowMensuel70 >= 0 ? 'bg-orange-100 border border-orange-300' : 'bg-red-100 border border-red-300'}`}>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-gray-700">Cash-flow mensuel (70% des loyers)</span>
-                              <span className={`font-bold ${mainCalc.cashflowMensuel70 >= 0 ? 'text-orange-700' : 'text-red-700'}`}>
-                                {mainCalc.cashflowMensuel70 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel70).toLocaleString('fr-FR')} € / mois
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-600">Cash-flow annuel</span>
-                              <span className={`font-semibold ${mainCalc.cashflowMensuel70 >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                                {mainCalc.cashflowMensuel70 * 12 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel70 * 12).toLocaleString('fr-FR')} € / an
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className={`p-3 rounded-xl ${mainCalc.cashflowMensuel100 >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-gray-700">Cash-flow mensuel (100% des loyers)</span>
-                              <span className={`font-bold ${mainCalc.cashflowMensuel100 >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                {mainCalc.cashflowMensuel100 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel100).toLocaleString('fr-FR')} € / mois
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-600">Cash-flow annuel</span>
-                              <span className={`font-semibold ${mainCalc.cashflowMensuel100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {mainCalc.cashflowMensuel100 * 12 >= 0 ? '+' : ''}{Math.round(mainCalc.cashflowMensuel100 * 12).toLocaleString('fr-FR')} € / an
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {mainCalc.cashflowMensuel70 < 0 && (() => {
-                          const loyersMensuelsNecessaires = mainCalc.mensualiteCredit / 0.7
-                          const augmentationLoyerNecessaire = loyersMensuelsNecessaires - loyersMensuelsTotal
-                          const facteurAmortissement = mainCalc.tauxMensuel > 0
-                            ? (mainCalc.tauxMensuel * Math.pow(1 + mainCalc.tauxMensuel, mainCalc.nombreMois)) / (Math.pow(1 + mainCalc.tauxMensuel, mainCalc.nombreMois) - 1)
-                            : 1 / mainCalc.nombreMois
-                          const nouveauMontantCredit = loyerNetMensuelBancaire / facteurAmortissement
-                          const reductionCoutTotalNecessaire = mainCalc.montantCredit - nouveauMontantCredit
-
-                          return (
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
-                              <p className="text-sm font-semibold text-red-900 mb-3">
-                                Le projet nécessite un apport mensuel de <strong>{Math.abs(Math.round(mainCalc.cashflowMensuel70)).toLocaleString('fr-FR')} €</strong> pour couvrir la mensualité du crédit.
-                              </p>
-                              <p className="text-xs text-red-800 mb-2 font-semibold">Pour équilibrer le projet :</p>
-                              <div className="space-y-2 text-xs text-red-800">
-                                <div className="bg-white bg-opacity-50 rounded p-2 border border-red-300">
-                                  <p className="font-semibold mb-1">Option 1 : Augmenter les loyers</p>
-                                  <p>Augmenter de <strong>+{Math.round(augmentationLoyerNecessaire).toLocaleString('fr-FR')} €/mois</strong> (soit {Math.round(loyersMensuelsNecessaires).toLocaleString('fr-FR')} €/mois au total)</p>
-                                </div>
-                                <div className="bg-white bg-opacity-50 rounded p-2 border border-red-300">
-                                  <p className="font-semibold mb-1">Option 2 : Réduire le coût du projet</p>
-                                  <p>Réduire de <strong>-{Math.round(reductionCoutTotalNecessaire).toLocaleString('fr-FR')} €</strong> (soit {Math.round(mainCalc.coutTotal - reductionCoutTotalNecessaire).toLocaleString('fr-FR')} € au total)</p>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Section 4: Rentabilité */}
-                  <Card className="p-6 bg-purple-50 border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Indicateurs de rentabilité
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="bg-white rounded-xl p-4 border border-purple-200">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm text-gray-600">Rentabilité brute</p>
-                            <p className="text-xs text-gray-500 mt-1">Loyers annuels / Coût total</p>
-                          </div>
-                          <span className={`text-2xl font-bold ${mainCalc.rentabiliteBrute >= 5 ? 'text-green-600' : mainCalc.rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
-                            {mainCalc.rentabiliteBrute.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-xl p-4 border border-purple-200">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm text-gray-600">Rentabilité nette (70%)</p>
-                            <p className="text-xs text-gray-500 mt-1">Loyers nets (70%) / Coût total</p>
-                          </div>
-                          <span className={`text-2xl font-bold ${mainCalc.rentabiliteNette >= 3.5 ? 'text-green-600' : mainCalc.rentabiliteNette >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
-                            {mainCalc.rentabiliteNette.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bg-purple-100 rounded-xl p-3 mt-4">
-                        <p className="text-xs font-semibold text-purple-900 mb-2">Guide de lecture</p>
-                        <ul className="text-xs text-purple-800 space-y-1">
-                          <li>• Rentabilité brute {'>'} 5% : Excellent</li>
-                          <li>• Rentabilité brute 3-5% : Correct</li>
-                          <li>• Rentabilité brute {'<'} 3% : Faible</li>
-                          <li>• Règle des 70% : les banques considèrent que 30% des loyers partent en charges/vacance</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Section 5: Analyse serveur (projet sauvegardé) */}
-                  {initialProjet?.id && (
-                    <Card className="p-6 bg-gray-50 border-gray-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                          <BarChart3 className="h-5 w-5" />
-                          Analyse complète (serveur)
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={handleCalculateRentabilite}
-                          disabled={analysisLoading}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-xl transition-colors disabled:opacity-50"
-                        >
-                          {analysisLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4" />
-                          )}
-                          {analysisLoading ? 'Calcul...' : 'Recalculer'}
-                        </button>
-                      </div>
-
-                      {analysisLoading && !analysisData && (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-8 w-8 text-gray-900 animate-spin" />
-                        </div>
-                      )}
-
-                      {analysisData && (
-                        <div className="space-y-3">
-                          {/* KPI Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">Rentabilité brute</p>
-                              <p className={`text-xl font-bold ${(analysisData.rentabiliteBrute || 0) >= 5 ? 'text-green-600' : (analysisData.rentabiliteBrute || 0) >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
-                                {(analysisData.rentabiliteBrute || 0).toFixed(2)}%
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">Rentabilité nette</p>
-                              <p className={`text-xl font-bold ${(analysisData.rentabiliteNette || 0) >= 3.5 ? 'text-green-600' : (analysisData.rentabiliteNette || 0) >= 2 ? 'text-orange-600' : 'text-red-600'}`}>
-                                {(analysisData.rentabiliteNette || 0).toFixed(2)}%
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">Cash-flow mensuel</p>
-                              <p className={`text-xl font-bold ${(analysisData.cashFlowMensuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {(analysisData.cashFlowMensuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowMensuel || 0).toLocaleString('fr-FR')} €
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">Cash-flow annuel</p>
-                              <p className={`text-xl font-bold ${(analysisData.cashFlowAnnuel || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {(analysisData.cashFlowAnnuel || 0) >= 0 ? '+' : ''}{(analysisData.cashFlowAnnuel || 0).toLocaleString('fr-FR')} €
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">ROI</p>
-                              <p className="text-xl font-bold text-gray-900">
-                                {(analysisData.roi || 0).toFixed(2)}%
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 text-center">
-                              <p className="text-xs text-gray-500">Taux endettement</p>
-                              <p className={`text-xl font-bold ${(analysisData.tauxEndettementProjet || 0) <= 35 ? 'text-green-600' : 'text-red-600'}`}>
-                                {(analysisData.tauxEndettementProjet || 0).toFixed(1)}%
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Détails supplémentaires */}
-                          <div className="bg-white rounded-xl p-3 border border-gray-200">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Charges annuelles estimées</span>
-                              <span className="font-semibold">{(analysisData.chargesAnnuelles || 0).toLocaleString('fr-FR')} €</span>
-                            </div>
-                            <div className="flex justify-between text-sm mt-1">
-                              <span className="text-gray-600">Récupération de l'apport</span>
-                              <span className="font-semibold">
-                                {(analysisData.anneesRecuperationApport || 0) > 0
-                                  ? `${(analysisData.anneesRecuperationApport || 0).toFixed(1)} ans`
-                                  : 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <p className="text-xs text-gray-900 italic">
-                            Analyse calculée sur les données sauvegardées en base. Sauvegardez le projet puis recalculez pour mettre à jour.
-                          </p>
-                        </div>
-                      )}
-
-                      {!analysisData && !analysisLoading && (
-                        <p className="text-sm text-gray-500 text-center py-4">
-                          Cliquez sur "Recalculer" pour lancer l'analyse complète du projet.
+                  {/* Le bien */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Le bien</h4>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-lg font-bold text-gray-900">{adresse || 'Adresse non renseignée'}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {typeBien || 'Type non défini'}
+                          {elementsBien.length > 0 && ` — ${elementsBien.reduce((s, e) => s + e.superficie, 0)} m²`}
+                          {dpe && ` — DPE ${dpe}`}
                         </p>
-                      )}
-                    </Card>
+                      </div>
+                      <span className="text-lg font-bold text-gray-900">{financement.prixAchat.toLocaleString('fr-FR')} €</span>
+                    </div>
+                  </div>
+
+                  {/* Les lots */}
+                  {elementsBien.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                      <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                        Composition ({elementsBien.length} lot{elementsBien.length > 1 ? 's' : ''})
+                      </h4>
+                      <div className="space-y-2">
+                        {elementsBien.map((el, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-100 last:border-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-900 font-medium">{el.type}</span>
+                              <span className="text-gray-400">{el.superficie} m²{el.nombrePieces ? ` — ${el.nombrePieces} p.` : ''}</span>
+                              {el.enLocation && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-medium rounded-full">Loué</span>}
+                            </div>
+                            {el.loyerMensuel ? (
+                              <span className="font-semibold text-green-600">{el.loyerMensuel.toLocaleString('fr-FR')} €/mois</span>
+                            ) : (
+                              <span className="text-gray-300 text-xs">—</span>
+                            )}
+                          </div>
+                        ))}
+                        {loyersMensuelsTotal > 0 && (
+                          <div className="flex justify-between pt-2 text-sm font-bold text-gray-900">
+                            <span>Total loyers</span>
+                            <span>{loyersMensuelsTotal.toLocaleString('fr-FR')} €/mois</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Travaux */}
+                  {travaux.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                      <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Travaux</h4>
+                      <div className="space-y-2">
+                        {travaux.map((t, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-100 last:border-0">
+                            <span className="text-gray-900 font-medium">{t.type || t.description || `Poste ${idx + 1}`}</span>
+                            <span className="font-semibold text-gray-900">{(t.montant || 0).toLocaleString('fr-FR')} €</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between pt-2 text-sm font-bold text-gray-900">
+                          <span>Total travaux</span>
+                          <span>{totalTravaux.toLocaleString('fr-FR')} €</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financement */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Financement</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-gray-600">Prix d'achat</span><span className="font-medium">{financement.prixAchat.toLocaleString('fr-FR')} €</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Frais de notaire</span><span className="font-medium">{financement.fraisNotaire.toLocaleString('fr-FR')} €</span></div>
+                      {financement.montantTravaux > 0 && <div className="flex justify-between"><span className="text-gray-600">Travaux</span><span className="font-medium">{financement.montantTravaux.toLocaleString('fr-FR')} €</span></div>}
+                      <div className="flex justify-between border-t border-gray-200 pt-2 font-bold text-gray-900"><span>Coût total</span><span>{coutTotal.toLocaleString('fr-FR')} €</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Apport</span><span className="font-medium text-green-600">- {financement.apportPersonnel.toLocaleString('fr-FR')} €</span></div>
+                      <div className="flex justify-between font-bold text-gray-900"><span>Emprunt</span><span>{montantCredit.toLocaleString('fr-FR')} €</span></div>
+                      {montantCredit > 0 && (
+                        <div className="flex justify-between text-gray-600"><span>{financement.dureeCredit} ans à {financement.tauxInteretEstime}%</span><span className="font-semibold text-gray-900">{Math.round(mensualiteCredit).toLocaleString('fr-FR')} €/mois</span></div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Conclusion */}
+                  <div className={`rounded-xl border p-5 ${cashflowMensuel >= 0 ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Conclusion</h4>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-gray-500">Rentabilité brute</p>
+                        <p className={`text-xl font-bold ${rentabiliteBrute >= 5 ? 'text-green-600' : rentabiliteBrute >= 3 ? 'text-orange-600' : 'text-red-600'}`}>
+                          {rentabiliteBrute.toFixed(1)}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Cash-flow (70%)</p>
+                        <p className={`text-xl font-bold ${cashflowMensuel >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {cashflowMensuel >= 0 ? '+' : ''}{Math.round(cashflowMensuel).toLocaleString('fr-FR')} €
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Mensualité</p>
+                        <p className="text-xl font-bold text-gray-900">{Math.round(mensualiteCredit).toLocaleString('fr-FR')} €</p>
+                      </div>
+                    </div>
+                    {cashflowMensuel >= 0 ? (
+                      <p className="text-sm text-green-800 mt-4">
+                        Le projet s'autofinance avec un excédent de {Math.round(cashflowMensuel).toLocaleString('fr-FR')} €/mois après application de la règle bancaire des 70%.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-orange-800 mt-4">
+                        Le projet nécessite un effort d'épargne de {Math.abs(Math.round(cashflowMensuel)).toLocaleString('fr-FR')} €/mois après application de la règle bancaire des 70%.
+                      </p>
+                    )}
+                  </div>
                 </>
               )
             })()}
