@@ -1,4 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { flushSync } from 'react-dom';
 import api from '@/services/api';
 
 interface User {
@@ -86,8 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(loggedUser));
 
-      setUser(loggedUser);
-      setIsAuthenticated(true);
+      // flushSync force React à committer l'état immédiatement,
+      // avant que navigate() ne soit appelé dans Login.tsx
+      flushSync(() => {
+        setUser(loggedUser);
+        setIsAuthenticated(true);
+      });
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erreur lors de la connexion';
       setError(errorMsg);
