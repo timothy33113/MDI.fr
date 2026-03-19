@@ -8,6 +8,15 @@ interface MainLayoutProps {
   children: React.ReactNode
 }
 
+const navItems = [
+  { path: '/', label: 'Accueil', icon: Home },
+  { path: '/profile', label: 'Associes', icon: Briefcase },
+  { path: '/projets', label: 'Projets', icon: FolderOpen },
+  { path: '/patrimoine', label: 'Patrimoine', icon: Building2 },
+]
+
+const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
+
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, isAuthenticated, logout, resendVerificationEmail } = useAuth()
   const navigate = useNavigate()
@@ -17,62 +26,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [resendSuccess, setResendSuccess] = useState(false)
   const [resendError, setResendError] = useState('')
 
-  const handleResendVerification = async () => {
-    setResendLoading(true)
-    setResendError('')
-    try {
-      await resendVerificationEmail()
-      setResendSuccess(true)
-    } catch (err) {
-      setResendError(err instanceof Error ? err.message : 'Une erreur est survenue')
-    } finally {
-      setResendLoading(false)
-    }
-  }
-
-  const showEmailBanner = user && user.emailVerified === false && !bannerDismissed
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
-  // Pages publiques : pas de layout
-  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
-  if (!user && publicPaths.some(p => location.pathname.startsWith(p))) {
-    return <>{children}</>
-  }
-
-  // Pas authentifié sur une route protégée : rediriger vers login
-  if (!user && !isAuthenticated) {
-    return <>{children}</>
-  }
-
-  // Authentifié mais user pas encore propagé : loader temporaire
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent" />
-      </div>
-    )
-  }
-
-  const navItems = [
-    { path: '/', label: 'Accueil', icon: Home },
-    { path: '/profile', label: 'Associes', icon: Briefcase },
-    { path: '/projets', label: 'Projets', icon: FolderOpen },
-    { path: '/patrimoine', label: 'Patrimoine', icon: Building2 },
-  ]
+  // Tous les hooks AVANT les early returns (règle des hooks React)
+  const navRef = useRef<HTMLElement>(null)
+  const linkRefs = useRef<Record<string, HTMLAnchorElement>>({})
+  const [pillStyle, setPillStyle] = useState<React.CSSProperties>({ top: 0, left: 0, width: 0, height: 0, opacity: 0 })
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
-
-  // Sliding pill navigation
-  const navRef = useRef<HTMLElement>(null)
-  const linkRefs = useRef<Record<string, HTMLAnchorElement>>({})
-  const [pillStyle, setPillStyle] = useState<React.CSSProperties>({ top: 0, left: 0, width: 0, height: 0, opacity: 0 })
 
   const activePath = navItems.find(item => isActive(item.path))?.path || '/'
 
@@ -100,6 +62,45 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     window.addEventListener('resize', updatePill)
     return () => window.removeEventListener('resize', updatePill)
   }, [updatePill])
+
+  const handleResendVerification = async () => {
+    setResendLoading(true)
+    setResendError('')
+    try {
+      await resendVerificationEmail()
+      setResendSuccess(true)
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : 'Une erreur est survenue')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  const showEmailBanner = user && user.emailVerified === false && !bannerDismissed
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  // Pages publiques : pas de layout
+  if (!user && publicPaths.some(p => location.pathname.startsWith(p))) {
+    return <>{children}</>
+  }
+
+  // Pas authentifié sur route protégée : laisser le composant enfant gérer
+  if (!user && !isAuthenticated) {
+    return <>{children}</>
+  }
+
+  // Authentifié mais user pas encore propagé : loader temporaire
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F7F7]">
