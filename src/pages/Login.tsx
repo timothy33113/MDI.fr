@@ -16,6 +16,7 @@ const Login: React.FC = () => {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
+  // Si déjà authentifié (visite directe de /login), rediriger
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/', { replace: true })
@@ -29,15 +30,15 @@ const Login: React.FC = () => {
 
     try {
       await login({ email, password })
-      // Navigation gérée par le useEffect sur isAuthenticated
-      // Ne pas remettre localLoading à false pour garder l'état de chargement
+      // Naviguer immédiatement après login (même batch React que les setState)
+      navigate('/', { replace: true })
     } catch (err) {
       setError('Email ou mot de passe incorrect')
       setLocalLoading(false)
     }
   }
 
-  // Afficher un loader pendant la redirection post-login
+  // Loader pendant la redirection
   if (isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">

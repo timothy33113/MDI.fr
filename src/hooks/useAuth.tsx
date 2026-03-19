@@ -78,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     try {
-      setLoading(true);
       setError(null);
 
       const response = await api.post<AuthResponse>('/auth?action=login', credentials);
@@ -93,8 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const errorMsg = err.response?.data?.error || 'Erreur lors de la connexion';
       setError(errorMsg);
       throw new Error(errorMsg);
-    } finally {
-      setLoading(false);
     }
   };
 

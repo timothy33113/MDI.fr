@@ -8,7 +8,7 @@ import { createDemoData } from '@/services/demoData'
 import api from '@/services/api'
 
 const Dashboard: React.FC = () => {
-  const { user, loading } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const { structures, addStructure, refreshStructures } = useStructuresContext()
   const [loadingDemo, setLoadingDemo] = useState(false)
@@ -45,12 +45,12 @@ const Dashboard: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isAuthenticated) {
       navigate('/login')
     }
-  }, [user, loading, navigate])
+  }, [isAuthenticated, navigate])
 
-  if (loading || !user) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent"></div>
