@@ -4,11 +4,13 @@ import { Plus, FileText, MoreHorizontal, Pencil, Trash2, MapPin, Copy, Loader2 }
 import Modal from '@/components/ui/Modal';
 import { StatusProjet } from '@/types';
 import { useProjets } from '@/hooks/useProjets';
+import { useToast } from '@/contexts/ToastContext';
 import api from '@/services/api';
 
 const ProjetsDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { projets, loading, deleteProjet, fetchProjets, getProjetById, createProjet } = useProjets();
+  const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projetToDelete, setProjetToDelete] = useState<{ id: string; nom: string } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -53,46 +55,91 @@ const ProjetsDashboard: React.FC = () => {
     setOpenMenuId(null);
     try {
       const projet = await getProjetById(projetId);
-      if (!projet) return;
+      if (!projet) {
+        toast.error('Impossible de charger le projet');
+        return;
+      }
 
-      const duplicateData = {
+      const num = (v: any) => (v != null ? Number(v) || 0 : null);
+      const bi = projet.bienImmobilier as any;
+      const fin = projet.financement as any;
+
+      const duplicateData: any = {
         nom: `${projet.nom} (copie)`,
         description: projet.description,
         porteurs: (projet.porteurs || []).map((p: any) => ({
           structureId: p.structureId || p.structure?.id,
-          pourcentageProjet: p.pourcentageProjet,
+          pourcentageProjet: Number(p.pourcentageProjet) || 100,
         })).filter((p: any) => p.structureId),
-        bien: projet.bienImmobilier ? {
-          adresse: projet.bienImmobilier.adresse,
-          codePostal: projet.bienImmobilier.codePostal,
-          ville: projet.bienImmobilier.ville,
-          type: projet.bienImmobilier.type,
-          superficie: projet.bienImmobilier.superficie,
-          nombrePieces: projet.bienImmobilier.nombrePieces,
-          etatActuel: projet.bienImmobilier.etatActuel,
-          destinationBien: projet.bienImmobilier.destinationBien,
-          loyerMensuelEstime: projet.bienImmobilier.loyerMensuelEstime,
-          chargesMensuelles: projet.bienImmobilier.chargesMensuelles,
-          dpe: projet.bienImmobilier.dpe,
-          ges: projet.bienImmobilier.ges,
-          taxeFonciere: projet.bienImmobilier.taxeFonciere,
+        bien: bi ? {
+          adresse: bi.adresse,
+          codePostal: bi.codePostal,
+          ville: bi.ville,
+          type: bi.type,
+          superficie: num(bi.superficie),
+          nombrePieces: num(bi.nombrePieces),
+          nombreChambres: num(bi.nombreChambres),
+          nombreSDB: num(bi.nombreSDB),
+          anneeConstruction: num(bi.anneeConstruction),
+          etatActuel: bi.etatActuel,
+          destinationBien: bi.destinationBien,
+          loyerMensuelEstime: num(bi.loyerMensuelEstime),
+          chargesMensuelles: num(bi.chargesMensuelles),
+          dpe: bi.dpe,
+          ges: bi.ges,
+          taxeFonciere: num(bi.taxeFonciere),
         } : undefined,
-        financement: projet.financement ? {
-          prixAchat: projet.financement.prixAchat,
-          fraisNotaire: projet.financement.fraisNotaire,
-          fraisAgence: projet.financement.fraisAgence,
-          montantTravaux: projet.financement.montantTravaux,
-          apportPersonnel: projet.financement.apportPersonnel,
-          dureeCredit: projet.financement.dureeCredit,
-          tauxInteretEstime: projet.financement.tauxInteretEstime,
-          typePret: projet.financement.typePret,
+        financement: fin ? {
+          prixAchat: num(fin.prixAchat),
+          fraisNotaire: num(fin.fraisNotaire),
+          fraisAgence: num(fin.fraisAgence),
+          montantTravaux: num(fin.montantTravaux),
+          fraisDossierBancaire: num(fin.fraisDossierBancaire),
+          fraisGarantie: num(fin.fraisGarantie),
+          autresFrais: num(fin.autresFrais),
+          apportPersonnel: num(fin.apportPersonnel),
+          dureeCredit: Number(fin.dureeCredit) || 20,
+          tauxInteretEstime: Number(fin.tauxInteretEstime) || 3.5,
+          tauxAssuranceEstime: Number(fin.tauxAssuranceEstime) || 0.3,
+          typePret: fin.typePret,
         } : undefined,
+        elementsBien: (bi?.elements || []).map((e: any) => ({
+          type: e.type,
+          superficie: num(e.superficie),
+          nombrePieces: num(e.nombrePieces),
+          etage: num(e.etage),
+          etat: e.etat,
+          enLocation: e.enLocation || false,
+          loyerMensuel: num(e.loyerMensuel),
+          chargesMensuelles: num(e.chargesMensuelles),
+          equipements: e.equipements,
+        })),
+        travaux: (bi?.travauxPrevus || []).map((t: any) => ({
+          categorie: t.categorie,
+          description: t.description,
+          montant: num(t.montant),
+          priorite: t.priorite,
+          dureeEstimee: num(t.dureeEstimee),
+          artisan: t.artisan,
+          devisObtenu: t.devisObtenu || false,
+        })),
+        photos: (bi?.photos || []).map((p: any) => ({
+          url: p.url,
+          type: p.type,
+          filename: p.filename,
+          description: p.description,
+          size: p.size,
+          mimeType: p.mimeType,
+          position: p.position,
+        })),
       };
 
-      const newProjet = await createProjet(duplicateData as any);
+      const newProjet = await createProjet(duplicateData);
+      toast.success('Projet dupliqué');
       navigate(`/projets/${newProjet.id}/edit`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur duplication:', err);
+      toast.error(err?.message || 'Erreur lors de la duplication');
     } finally {
       setDuplicating(null);
     }
