@@ -30,11 +30,20 @@ const Login: React.FC = () => {
     try {
       await login({ email, password })
       // Navigation gérée par le useEffect sur isAuthenticated
+      // Ne pas remettre localLoading à false pour garder l'état de chargement
     } catch (err) {
       setError('Email ou mot de passe incorrect')
-    } finally {
       setLocalLoading(false)
     }
+  }
+
+  // Afficher un loader pendant la redirection post-login
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent" />
+      </div>
+    )
   }
 
   return (

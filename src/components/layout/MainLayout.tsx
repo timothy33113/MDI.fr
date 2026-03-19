@@ -9,7 +9,7 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { user, logout, resendVerificationEmail } = useAuth()
+  const { user, isAuthenticated, logout, resendVerificationEmail } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -37,8 +37,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     navigate('/login')
   }
 
-  if (!user) {
+  // Pages publiques : pas de layout
+  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
+  if (!user && publicPaths.some(p => location.pathname.startsWith(p))) {
     return <>{children}</>
+  }
+
+  // Authentifié mais user pas encore propagé : loader
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent" />
+      </div>
+    )
   }
 
   const navItems = [
