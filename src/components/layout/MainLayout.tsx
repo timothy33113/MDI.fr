@@ -43,7 +43,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return <>{children}</>
   }
 
-  // Authentifié mais user pas encore propagé : loader
+  // Pas authentifié sur une route protégée : rediriger vers login
+  if (!user && !isAuthenticated) {
+    return <>{children}</>
+  }
+
+  // Authentifié mais user pas encore propagé : loader temporaire
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
