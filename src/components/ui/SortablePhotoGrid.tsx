@@ -149,23 +149,24 @@ const SortablePhotoGrid: React.FC<SortablePhotoGridProps> = ({
   )
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    for (const file of acceptedFiles) {
-      const tempId = `uploading-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const placeholder: PhotoItem = {
-        id: tempId,
-        url: '',
-        filename: file.name,
-        type: 'Autre',
-        position: photos.length,
-        isUploading: true,
-      }
+    // Add all placeholders at once using ref to avoid stale closure
+    const placeholders: PhotoItem[] = acceptedFiles.map((file, i) => ({
+      id: `uploading-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+      url: '',
+      filename: file.name,
+      type: 'Autre',
+      position: photosRef.current.length + i,
+      isUploading: true,
+    }))
+    onChange([...photosRef.current, ...placeholders])
 
-      // Add placeholder
-      onChange([...photos, placeholder])
+    // Upload each file and replace its placeholder
+    for (let i = 0; i < acceptedFiles.length; i++) {
+      const file = acceptedFiles[i]
+      const tempId = placeholders[i].id
 
       try {
         const result = await uploadPhoto(file)
-        // Replace placeholder with real photo
         onChange(photosRef.current.map(p =>
           p.id === tempId
             ? { ...p, id: `photo-${Date.now()}-${Math.random().toString(36).slice(2)}`, url: result.url, filename: result.filename, isUploading: false }
@@ -173,11 +174,10 @@ const SortablePhotoGrid: React.FC<SortablePhotoGridProps> = ({
         ))
       } catch (err) {
         console.error('Upload failed:', err)
-        // Remove failed placeholder
         onChange(photosRef.current.filter(p => p.id !== tempId))
       }
     }
-  }, [photos, onChange, uploadPhoto])
+  }, [onChange, uploadPhoto])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

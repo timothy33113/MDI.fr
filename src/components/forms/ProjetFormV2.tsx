@@ -698,13 +698,15 @@ const ProjetFormV2: React.FC<ProjetFormV2Props> = ({ structures, onSubmit, onCan
       },
       elementsBien: elementsBien.length > 0 ? elementsBien.map(({ id, ...rest }) => rest) : undefined,
       travaux: travaux.length > 0 ? travaux.map(({ id, ...rest }) => rest) : undefined,
-      photos: photos.length > 0 ? photos.map(p => ({
-        url: p.url,
-        filename: p.filename,
-        description: p.description,
-        type: p.type,
-        position: p.position,
-      })) : undefined,
+      photos: photos.filter(p => !p.isUploading && p.url).length > 0
+        ? photos.filter(p => !p.isUploading && p.url).map((p, i) => ({
+            url: p.url,
+            filename: p.filename,
+            description: p.description,
+            type: p.type,
+            position: i,
+          }))
+        : undefined,
       photoCouverture: photoCouverture || undefined,
       comparables: comparables.filter(c => !c.loading && !c.error).map(({ loading, error, ...rest }) => rest),
       financement: {
